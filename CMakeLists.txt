@@ -1,28 +1,23 @@
 cmake_minimum_required(VERSION 3.20)
-project(er-saveinstaller LANGUAGES CXX)
+project(er-savepatcher LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release)
+    set(CMAKE_BUILD_TYPE Debug)
 endif()
 
 message("-- Detected build type: ${CMAKE_BUILD_TYPE}")
 
-#if(CMAKE_BUILD_TYPE STREQUAL Debug)
-#    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0")
-#    add_definitions(DEBUG)
-#endif()
-
 # For my LSP
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-add_executable(er-saveinstaller
+add_executable(er-savepatcher
     src/main.cpp
 )
 
-target_compile_options(er-saveinstaller PRIVATE
+target_compile_options(er-savepatcher PRIVATE
     -Wall
     -Wno-reorder
     -Wno-missing-braces
@@ -32,8 +27,8 @@ target_compile_options(er-saveinstaller PRIVATE
 
 find_package(fmt REQUIRED)
 
-target_link_libraries(er-saveinstaller
+target_link_libraries(er-savepatcher
     PRIVATE fmt::fmt
 )
 
-install(TARGETS er-saveinstaller DESTINATION bin)
+install(TARGETS er-savepatcher DESTINATION bin)

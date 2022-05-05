@@ -15,6 +15,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_executable(er-savepatcher
     src/main.cpp
+    src/savefile.cpp
 )
 
 target_compile_options(er-savepatcher PRIVATE

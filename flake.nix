@@ -1,5 +1,5 @@
 rec {
-  description = "A small program to convert Elden Ring save files";
+  description = "A small program to patch different Steam IDs into Elden Ring savefiles";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
@@ -14,7 +14,7 @@ rec {
     nixpkgsFor = forAllSystems (system: import nixpkgs { inherit system; overlays = [ self.overlays.default ]; });
   in {
     overlays.default = final: prev: {
-      er-savepatcher = with final; clangStdenv.mkDerivation rec {
+      er-savepatcher = with final; clang13Stdenv.mkDerivation rec {
         pname = "er-savepatcher";
         inherit version;
 

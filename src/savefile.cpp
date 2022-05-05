@@ -48,8 +48,40 @@ std::vector<uint8_t> SaveFile::get(int beginOffset, int endOffset, std::vector<u
     return std::vector<uint8_t>(data.begin() + beginOffset, data.begin() + endOffset);
 }
 
-std::vector<uint8_t> SaveFile::saveHeader() {
-    return get(magic.SAVE_HEADER_START_INDEX, magic.SAVE_HEADER_START_INDEX + magic.SAVE_HEADER_LENGTH + 1);
+void SaveFile::print(int beginOffset, int endOffset, std::vector<uint8_t>& data) {
+    std::vector<uint8_t> dataToPrint = get(beginOffset, endOffset, data);
+    int index = 0;
+
+    for (auto& i : dataToPrint) {
+        auto byte = std::bitset<8>(i);
+        auto output = fmt::format("{:02x} ", byte.to_ulong());
+
+        // Arbitrary number of bytes per line
+        if (index % 56 == 0 && index != 0)
+            output += "\n";
+
+        fmt::print(output);
+        index++;
+    }
+
+    fmt::print("\n");
+}
+
+unsigned long long SaveFile::steamId() {
+    auto steamIdSection = get(magic.STEAM_ID_INDEX, magic.STEAM_ID_INDEX + magic.STEAM_ID_LENGTH);
+    std::string steamId;
+
+    // Stored in little endian so we need to reverse the order of the bytes
+    std::reverse(steamIdSection.begin(), steamIdSection.end());
+
+    for (int i = 0; i < magic.STEAM_ID_LENGTH; i++) {
+        std::bitset<16> byte(steamIdSection[i]);
+
+        steamId += fmt::format("{:02x}", byte.to_ullong());
+    }
+
+    // Convert to 16 bit integer
+    return std::stoul(steamId, nullptr, 16);
 };
 
 std::string SaveFile::name() {
@@ -68,26 +100,12 @@ std::string SaveFile::name() {
     return name;
 }
 
-bool SaveFile::isActive() {
-    return get(magic.CHAR_ACTIVE_START_INDEX)[0];
+bool SaveFile::active() {
+    return get(magic.CHAR_ACTIVE_INDEX)[0];
 }
 
-void SaveFile::print(int beginOffset, int endOffset, std::vector<uint8_t>& data) {
-    std::vector<uint8_t> dataToPrint = get(beginOffset, endOffset, data);
-    int index = 0;
-
-    for (auto& i : dataToPrint) {
-        auto byte = std::bitset<8>(i);
-        auto output = fmt::format("{:02x} ", byte.to_ulong());
-
-        if (index % 56 == 0 && index != 0)
-            output += "\n";
-
-        fmt::print(output);
-        index++;
-    }
-
-    fmt::print("\n");
-}
+std::vector<uint8_t> SaveFile::saveHeader() {
+    return get(magic.SAVE_HEADER_INDEX, magic.SAVE_HEADER_INDEX + magic.SAVE_HEADER_LENGTH + 1);
+};
 
 }; // namespace savepatcher

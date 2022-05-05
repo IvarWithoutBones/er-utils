@@ -20,17 +20,17 @@ class SaveFile {
 
     // copied from https://github.com/BenGrn/EldenRingSaveCopier/blob/v0.0.2-alpha/EldenRingSaveCopy/Saves/Model/SaveGame.cs#L11
     struct magic {
-        const static int SAVE_HEADER_START_INDEX = 0x1901D0E;
-        const static int SAVE_HEADER_LENGTH = 0x24C;
-        const static int CHAR_NAME_LENGTH = 0x22;
-        const static int CHAR_ACTIVE_START_INDEX = 0x1901D04;
-        const static int CHAR_LEVEL_OFFSET = 0x22;
-
+        int SAVE_HEADER_INDEX = 0x1901D0E;
+        int SAVE_HEADER_LENGTH = 0x24C;
+        int CHAR_NAME_LENGTH = 0x22;
+        int CHAR_ACTIVE_INDEX = 0x1901D04;
+        int CHAR_LEVEL_OFFSET = 0x22;
+        int STEAM_ID_INDEX = 0x19003B4;
+        int STEAM_ID_LENGTH = 0x8;
         //const static int SLOT_START_INDEX = 0x310;
         //const static int SLOT_LENGTH = 0x280000;
         //const static int SAVE_HEADERS_SECTION_START_INDEX = 0x19003B0;
         //const static int SAVE_HEADERS_SECTION_LENGTH = 0x60000;
-        const static int STEAM_ID_LOCATION = 0x19003B4;
     } magic;
 
   public:
@@ -41,13 +41,18 @@ class SaveFile {
     // Get the name of the character in save slot 0
     std::string name();
 
+    // Get the steam ID currently used by the save file.
+    unsigned long long steamId();
+
     // Check wether save slot 0 is active
-    bool isActive();
+    bool active();
 
     // Pretty(ish) print the save files binary data in hex
     void print(int beginOffset, int endOffset, std::vector<uint8_t>& data);
     void print(int beginOffset, int endOffset) { print(beginOffset, endOffset, data); }
+    void print(int endOffset) { print(0, endOffset, data); };
+    void print(std::vector<uint8_t> data) { print(0, data.size(), data); };
     void print() { print(0, data.size()); };
-    void print(int startOffset) { print(startOffset, data.size()); };
 };
+
 } // namespace savepatcher

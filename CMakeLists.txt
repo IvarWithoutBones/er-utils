@@ -20,13 +20,10 @@ add_executable(er-savepatcher
 
 target_compile_options(er-savepatcher PRIVATE
     -Wall
-    -Wno-reorder
-    -Wno-missing-braces
-    -Wno-unused-variable
-    -Wno-dangling-else
 )
 
 find_package(fmt REQUIRED)
+message("-- Detected fmt: ${fmt_DIR}")
 
 target_link_libraries(er-savepatcher
     PRIVATE fmt::fmt

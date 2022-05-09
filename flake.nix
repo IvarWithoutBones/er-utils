@@ -25,7 +25,7 @@ rec {
         ];
 
         buildInputs = [
-          fmt
+          fmt_8
         ];
 
         meta = with lib; {

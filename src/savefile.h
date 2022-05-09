@@ -1,49 +1,48 @@
-#include <vector>
 #include <string>
+#include <vector>
+#include <span>
 
 namespace savepatcher {
 
+// A struct containing the offsets for save data sections
+struct Section {
+    size_t offset;
+    size_t length;
+
+    constexpr Section(size_t offset, size_t length) : offset{offset}, length{offset + length} {}
+};
+
 class SaveFile {
   private:
+    // The containers for the save data. Note that only the span is being used directly
+    std::vector<uint8_t> data;
+    std::span<uint8_t> dataSpan;
+
+    // The offsets for the savefile sections
+    constexpr static Section SteamIdSection{0x19003B4, 0x8};
+    constexpr static Section ActiveSection{0x1901D04, 0x1};
+    constexpr static Section SaveHeaderSection{0x1901D0E, 0x24C};
+    constexpr static Section NameSection{SaveHeaderSection.offset, 0x22};
+
     // Load a save file from a file on disk
     std::vector<uint8_t> loadFile(const std::string& filename);
-    std::vector<uint8_t> data;
 
-    // Get a range of bytes from the save file
-    std::vector<uint8_t> getByteRange(int beginOffset, int endOffset, std::vector<uint8_t>& section);
-    std::vector<uint8_t> getByteRange(int beginOffset, int endOffset) { return getByteRange(beginOffset, endOffset, data); }
-    std::vector<uint8_t> getByteRange(std::vector<uint8_t> data) { return getByteRange(0, data.size(), data); }
-    std::vector<uint8_t> getByteRange(int offset) { return getByteRange(offset, offset + 1, data); }
+    // Get a range of raw bytes from the save data
+    std::span<uint8_t> getByteRange(int beginOffset, size_t length);
+    std::span<uint8_t> getByteRange(Section section) { return getByteRange(section.offset, section.length); }
 
-    // Get a range of bytes from the save file as ascii
-    std::string getCharRange(int beginOffset, int endOffset, std::vector<uint8_t>& section);
-    std::string getCharRange(int beginOffset, int endOffset) { return getCharRange(beginOffset, endOffset, data); }
+    // Get a range of bytes from the save data as an ascii string
+    std::string getCharRange(int beginOffset, size_t length);
+    std::string getCharRange(Section section) { return getCharRange(section.offset, section.length); }
 
     // Convert a value to a little endian 16 bit integer
-    unsigned long long toLittleEndian(int beginOffset, int endOffset, std::vector<uint8_t>& section);
-    unsigned long long toLittleEndian(std::vector<uint8_t>& section) { return toLittleEndian(0, section.size(), section); }
-
-    // The raw bytes pointing to the save header
-    std::vector<uint8_t> saveHeader();
-
-    // Copied from https://github.com/BenGrn/EldenRingSaveCopier/blob/v0.0.2-alpha/EldenRingSaveCopy/Saves/Model/SaveGame.cs#L11
-    struct magic {
-        int SAVE_HEADER_INDEX = 0x1901D0E;
-        int SAVE_HEADER_LENGTH = 0x24C;
-        int STEAM_ID_INDEX = 0x19003B4;
-        int STEAM_ID_LENGTH = 0x8;
-        int ACTIVE_INDEX = 0x1901D04;
-        int NAME_OFFSET = 0x22;
-        int LEVEL_OFFSET = 0x22;
-        //int SLOT_START_INDEX = 0x310;
-        //int SLOT_LENGTH = 0x280000;
-        //int SAVE_HEADERS_SECTION_START_INDEX = 0x19003B0;
-        //int SAVE_HEADERS_SECTION_LENGTH = 0x60000;
-    } magic;
+    unsigned long long toLittleEndian(int beginOffset, size_t length);
+    unsigned long long toLittleEndian(Section section) { return toLittleEndian(section.offset, section.length); }
 
   public:
     SaveFile(const std::string& filename) {
         data = loadFile(filename);
+        dataSpan = {data.data(), data.size()};
     }
 
     // Get the name of the character in save slot 0
@@ -52,14 +51,13 @@ class SaveFile {
     // Get the steam ID currently used by the save file
     unsigned long long steamId();
 
-    // Check wether save slot 0 is active
+    // Check wether save slot 0 is active or not
     bool active();
 
-    // Pretty(ish) print the save files binary data in hex
-    void print(int beginOffset, int endOffset, std::vector<uint8_t>& data);
-    void print(int beginOffset, int endOffset) { print(beginOffset, endOffset, data); }
-    void print(int endOffset) { print(0, endOffset, data); };
-    void print(std::vector<uint8_t> data) { print(0, data.size(), data); };
+    // Pretty(ish) print the saves binary data in hex
+    void print(int beginOffset, size_t length);
+    void print(size_t length) { print(0, length); };
+    void print(const std::vector<uint8_t>& data) { print(0, data.size()); };
     void print() { print(0, data.size()); };
 };
 

@@ -14,7 +14,7 @@ bool SaveFile::active() {
     return getByteRange(ActiveSection)[0];
 }
 
-unsigned long long SaveFile::steamId() {
+unsigned long SaveFile::steamId() {
     return toLittleEndian(SteamIdSection);
 }
 
@@ -24,19 +24,19 @@ std::vector<uint8_t> SaveFile::loadFile(const std::string& filename) {
     if (!file.is_open())
         exception("Could not open file '{}'", filename);
 
-    data = {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+    originalSavefile = {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+    dataSpan = {originalSavefile.data(), 3};
     file.close();
 
     // Validate the file is an Elden Ring save by checking if it starts with ascii "BND"
-    dataSpan = {data.data(), 3};
     if (getCharRange(0, 3) != "BND")
         exception("File '{}' is not a valid Elden Ring save file.", filename);
 
-    return data;
+    return originalSavefile;
 }
 
 std::span<uint8_t> SaveFile::getByteRange(int beginOffset, size_t length) {
-    if (beginOffset < 0 || length > dataSpan.size() || beginOffset > length)
+    if (beginOffset < 0 || beginOffset > dataSpan.size_bytes() || length > (dataSpan.size_bytes() - beginOffset))
         exception("Invalid offset range: [{}, {}], size: {}", beginOffset, length, dataSpan.size_bytes());
 
     return dataSpan.subspan(beginOffset, length - beginOffset);
@@ -55,27 +55,60 @@ std::string SaveFile::getCharRange(int beginOffset, size_t size) {
     return chars;
 }
 
-unsigned long long SaveFile::toLittleEndian(int beginOffset, size_t length) {
+unsigned long SaveFile::toLittleEndian(int beginOffset, size_t length) {
     auto section{getByteRange(beginOffset, length)};
-    std::vector<uint8_t> reversed;
+    std::vector<uint8_t> data;
     std::string output;
 
-    // Copy span to an editable vector
-    std::copy(section.begin(), section.end(), std::back_inserter(reversed));
+    // Copy the span to a mutable vector
+    std::copy(section.begin(), section.end(), std::back_inserter(data));
 
-    // Revert the order of the bytes as to convert it to little endian
-    std::reverse(reversed.begin(), reversed.end());
+    // Convert to little endian by reversing the order of the bytes
+    std::reverse(data.begin(), data.end());
 
-    for (auto& bit : reversed) {
+    for (auto& bit : data) {
         std::bitset<16> byte(bit);
         output += fmt::format("{:02x}", byte.to_ullong());
     }
 
-    // Convert output to a 16 bit unsigned long long
+    // Convert output to a 16 bit unsigned integer
     return std::stoul(output, nullptr, 16);
 }
 
-void SaveFile::print(int beginOffset, size_t length) {
+std::vector<uint8_t> SaveFile::replaceSteamId(unsigned long steamId) {
+    std::vector<uint8_t> output{originalSavefile};
+    std::vector<uint8_t> newSteamIdBytes;
+    int idx{};
+
+    // Convert the given Steam ID to raw bytes
+    for (int i{}; i < 8; i++)
+        newSteamIdBytes.emplace_back(steamId >> (i * 8));
+
+    // Replace the steam ID inside of the save file
+    for (int offset{SteamIdSection.offset}; offset < SteamIdSection.length; offset++) {
+        //fmt::print("0x{}: replaced {:02x} with {:02x}\n", offset, output[offset], newSteamIdBytes[idx]);
+        if (idx < newSteamIdBytes.size())
+            output[offset] = newSteamIdBytes[idx];
+        idx++;
+    }
+
+    idx = 0;
+
+    // Write the output to a file
+    // TODO: make configurable
+    std::ofstream file("output.sl2", std::ios::binary);
+    if (!file.is_open())
+        exception("could not open file 'output.sl2'");
+    fmt::print("writing output to: 'output.sl2'\n");
+
+    file.clear();
+    file.write(reinterpret_cast<char*>(output.data()), output.size());
+    file.close();
+
+    return output;
+};
+
+void SaveFile::print(int beginOffset, size_t length, std::span<uint8_t> data) {
     auto dataToPrint{getByteRange(beginOffset, length)};
     std::string output;
     int index{};

@@ -14,8 +14,10 @@ struct Section {
 
 class SaveFile {
   private:
-    // The containers for the save data. Note that only the span is being used directly
-    std::vector<uint8_t> data;
+    // The raw data stored in the save file as raw bytes
+    std::vector<uint8_t> originalSavefile;
+
+    // A span of the save file data
     std::span<uint8_t> dataSpan;
 
     // The offsets for the savefile sections
@@ -35,30 +37,31 @@ class SaveFile {
     std::string getCharRange(int beginOffset, size_t length);
     std::string getCharRange(Section section) { return getCharRange(section.offset, section.length); }
 
-    // Convert a value to a little endian 16 bit integer
-    unsigned long long toLittleEndian(int beginOffset, size_t length);
-    unsigned long long toLittleEndian(Section section) { return toLittleEndian(section.offset, section.length); }
+    // Convert a range of bytes to a little endian 16 bit integer
+    unsigned long toLittleEndian(int beginOffset, size_t length);
+    unsigned long toLittleEndian(Section section) { return toLittleEndian(section.offset, section.length); }
 
   public:
     SaveFile(const std::string& filename) {
-        data = loadFile(filename);
-        dataSpan = {data.data(), data.size()};
+        originalSavefile = loadFile(filename);
+        dataSpan = {originalSavefile.data(), originalSavefile.size()};
     }
 
     // Get the name of the character in save slot 0
     std::string name();
 
     // Get the steam ID currently used by the save file
-    unsigned long long steamId();
+    unsigned long steamId();
 
     // Check wether save slot 0 is active or not
     bool active();
 
+    // Replace the steam ID hardcoded in the save file with the given steam ID and return the patched data
+    std::vector<uint8_t> replaceSteamId(unsigned long steamId);
+
     // Pretty(ish) print the saves binary data in hex
-    void print(int beginOffset, size_t length);
-    void print(size_t length) { print(0, length); };
-    void print(const std::vector<uint8_t>& data) { print(0, data.size()); };
-    void print() { print(0, data.size()); };
+    void print(int beginOffset, size_t length, std::span<uint8_t> data);
+    void print(std::span<uint8_t> range) { print(range.data()[0], range.size_bytes(), dataSpan); }
 };
 
 } // namespace savepatcher

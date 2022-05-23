@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.17)
 project(er-savepatcher LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -18,15 +18,13 @@ add_executable(er-savepatcher
     src/savefile.cpp
 )
 
-target_compile_options(er-savepatcher PRIVATE
-    -Wall
-)
-
+find_package(OpenSSL REQUIRED)
 find_package(fmt REQUIRED)
-message("-- Detected fmt: ${fmt_DIR}")
+message("-- Found fmt: ${fmt_DIR}")
 
-target_link_libraries(er-savepatcher
-    PRIVATE fmt::fmt
+target_link_libraries(er-savepatcher PRIVATE
+    OpenSSL::Crypto
+    fmt::fmt
 )
 
 install(TARGETS er-savepatcher DESTINATION bin)

@@ -1,6 +1,6 @@
+#include <span>
 #include <string>
 #include <vector>
-#include <span>
 
 namespace savepatcher {
 
@@ -14,54 +14,70 @@ struct Section {
 
 class SaveFile {
   private:
-    // The raw data stored in the save file as raw bytes
-    std::vector<uint8_t> originalSavefile;
+    unsigned long steamId;
 
-    // A span of the save file data
-    std::span<uint8_t> dataSpan;
-
-    // The offsets for the savefile sections
+    // The offsets of the data sections
+    constexpr static int SaveFileSize = 28967888;
+    constexpr static Section HeaderBNDSection{0x0, 0x3};
+    constexpr static Section SaveHeaderSection{0x19003B0, 0x60000};
+    constexpr static Section SaveHeaderChecksumSection{0x19003A0, 0x10};
     constexpr static Section SteamIdSection{0x19003B4, 0x8};
     constexpr static Section ActiveSection{0x1901D04, 0x1};
-    constexpr static Section SaveHeaderSection{0x1901D0E, 0x24C};
-    constexpr static Section NameSection{SaveHeaderSection.offset, 0x22};
+    constexpr static Section NameSection{0x1901D0E, 0x22};
+
+    // The raw data stored in the save file as raw bytes
+    std::vector<uint8_t> originalSaveData;
+
+    // A span to read the save file data from
+    std::span<uint8_t> saveData;
+
+    // The save data to write patched data to
+    std::vector<uint8_t> patchedSaveData;
 
     // Load a save file from a file on disk
-    std::vector<uint8_t> loadFile(const std::string& filename);
+    std::vector<uint8_t> loadFile(const std::string &filename);
+
+    // Validate a file is an Elden Ring save file
+    void validateData(std::span<uint8_t> &data, const std::string &targetMsg);
+
+    // Recalculate the save header checksum
+    void recalculateChecksum();
+
+    // Get the Steam ID from the save file
+    unsigned long getSteamId() { return toLittleEndian(SteamIdSection); }
 
     // Get a range of raw bytes from the save data
-    std::span<uint8_t> getByteRange(int beginOffset, size_t length);
-    std::span<uint8_t> getByteRange(Section section) { return getByteRange(section.offset, section.length); }
+    std::span<uint8_t> getByteRange(Section range, std::span<uint8_t> &data);
+    std::span<uint8_t> getByteRange(Section range) { return getByteRange(range, saveData); }
 
-    // Get a range of bytes from the save data as an ascii string
-    std::string getCharRange(int beginOffset, size_t length);
-    std::string getCharRange(Section section) { return getCharRange(section.offset, section.length); }
+    // Get a range of unformatted bytes from the save data as an ascii string
+    std::string getCharRange(Section range, std::span<uint8_t> &data);
+    std::string getCharRange(Section range) { return getCharRange(range, saveData); }
 
     // Convert a range of bytes to a little endian 16 bit integer
-    unsigned long toLittleEndian(int beginOffset, size_t length);
-    unsigned long toLittleEndian(Section section) { return toLittleEndian(section.offset, section.length); }
+    unsigned long toLittleEndian(Section range, std::span<uint8_t> &data);
+    unsigned long toLittleEndian(Section range) { return toLittleEndian(range, saveData); };
 
   public:
-    SaveFile(const std::string& filename) {
-        originalSavefile = loadFile(filename);
-        dataSpan = {originalSavefile.data(), originalSavefile.size()};
+    SaveFile(const std::string &filename) {
+        originalSaveData = loadFile(filename);
+        patchedSaveData = originalSaveData;
+        saveData = {originalSaveData.data(), originalSaveData.size()};
+
+        steamId = getSteamId();
     }
 
-    // Get the name of the character in save slot 0
-    std::string name();
+    // Write the patched save data to a file
+    void write(const std::string &filename);
 
-    // Get the steam ID currently used by the save file
-    unsigned long steamId();
+    // Replace the steam ID hardcoded in the save file with the given steam ID
+    void replaceSteamId(unsigned long steamId);
+
+    // Get the name of the character in save slot 0
+    std::string name() { return getCharRange(NameSection); }
 
     // Check wether save slot 0 is active or not
-    bool active();
-
-    // Replace the steam ID hardcoded in the save file with the given steam ID and return the patched data
-    std::vector<uint8_t> replaceSteamId(unsigned long steamId);
-
-    // Pretty(ish) print the saves binary data in hex
-    void print(int beginOffset, size_t length, std::span<uint8_t> data);
-    void print(std::span<uint8_t> range) { print(range.data()[0], range.size_bytes(), dataSpan); }
+    bool active() { return getByteRange(ActiveSection)[0]; }
 };
 
 } // namespace savepatcher

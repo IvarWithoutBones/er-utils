@@ -7,44 +7,23 @@
 
 namespace savepatcher {
 
-// Generate an MD5 hash of the given string using the OpenSSL library.
-class md5sum {
-  public:
-    // Calculate the MD5 checksum of the given string.
-    md5sum(const std::string &str) { checksum = generateMd5(str); }
+using u16 = uint_fast16_t;                         //!< Unsigned 16-bit integer
+using u8 = uint_fast8_t;                           //!< Unsigned 8-bit integer
+using Md5Hash = std::array<u8, MD5_DIGEST_LENGTH>; //!< MD5 hash
+constexpr static int bitsInByte = 0x8;             //!< Number of bits in a byte
+constexpr static int bitsInShort = 0x10;           //!< Number of bits in a short
 
-    // Return the MD5 checksum as a vector of bytes.
-    constexpr std::span<uint8_t> getBytes() { return std::span<uint8_t>(checksum.data(), checksum.size()); }
-
-    // Get the generated MD5 checksum as a string.
-    std::string getString() const {
-        std::string result;
-
-        for (auto &i : checksum)
-            result += fmt::format("{:02x}", i);
-
-        return result;
-    }
-
-  private:
-    std::vector<uint8_t> checksum;
+// Generate the MD5 checksum of the given string.
+inline Md5Hash GenerateMd5(std::string_view input) {
     MD5_CTX sha256;
+    Md5Hash hash{};
 
-    // Generate the MD5 checksum of the given string.
-    std::vector<uint8_t> generateMd5(const std::string input) {
-        uint8_t hash[MD5_DIGEST_LENGTH];
-        std::vector<uint8_t> output;
+    MD5_Init(&sha256);
+    MD5_Update(&sha256, input.data(), input.size());
+    MD5_Final(hash.data(), &sha256);
 
-        MD5_Init(&sha256);
-        MD5_Update(&sha256, input.c_str(), input.size());
-        MD5_Final(hash, &sha256);
-
-        for (int i = 0; i < MD5_DIGEST_LENGTH; i++)
-            output.emplace_back(hash[i]);
-
-        return output;
-    }
-};
+    return hash;
+}
 
 // A wrapper around std::runtime_error with {fmt} formatting
 // Copied from https://github.com/skyline-emu/skyline/blob/8826c113b0bdd602ba302df7ad47febe751d45d1/app/src/main/cpp/skyline/common/base.h#L76

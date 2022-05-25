@@ -8,8 +8,9 @@ namespace savepatcher {
 struct Section {
     size_t offset;
     size_t length;
+    size_t size;
 
-    constexpr Section(size_t offset, size_t length) : offset{offset}, length{offset + length} {}
+    constexpr Section(size_t offset, size_t length) : offset{offset}, size{length}, length{offset + length} {}
 };
 
 class SaveFile {
@@ -17,7 +18,7 @@ class SaveFile {
     unsigned long steamId;
 
     // The offsets of the data sections
-    constexpr static int SaveFileSize = 28967888;
+    constexpr static int SaveFileSize = 0x1BA03D0;
     constexpr static Section HeaderBNDSection{0x0, 0x3};
     constexpr static Section SaveHeaderSection{0x19003B0, 0x60000};
     constexpr static Section SaveHeaderChecksumSection{0x19003A0, 0x10};
@@ -44,19 +45,27 @@ class SaveFile {
     void recalculateChecksum();
 
     // Get the Steam ID from the save file
-    unsigned long getSteamId() { return toLittleEndian(SteamIdSection); }
+    unsigned long getSteamId() {
+        return toLittleEndian(SteamIdSection);
+    }
 
     // Get a range of raw bytes from the save data
     std::span<uint8_t> getByteRange(Section range, std::span<uint8_t> &data);
-    std::span<uint8_t> getByteRange(Section range) { return getByteRange(range, saveData); }
+    std::span<uint8_t> getByteRange(Section range) {
+        return getByteRange(range, saveData);
+    }
 
     // Get a range of unformatted bytes from the save data as an ascii string
     std::string getCharRange(Section range, std::span<uint8_t> &data);
-    std::string getCharRange(Section range) { return getCharRange(range, saveData); }
+    std::string getCharRange(Section range) {
+        return getCharRange(range, saveData);
+    }
 
     // Convert a range of bytes to a little endian 16 bit integer
     unsigned long toLittleEndian(Section range, std::span<uint8_t> &data);
-    unsigned long toLittleEndian(Section range) { return toLittleEndian(range, saveData); };
+    unsigned long toLittleEndian(Section range) {
+        return toLittleEndian(range, saveData);
+    };
 
   public:
     SaveFile(const std::string &filename) {
@@ -74,10 +83,14 @@ class SaveFile {
     void replaceSteamId(unsigned long steamId);
 
     // Get the name of the character in save slot 0
-    std::string name() { return getCharRange(NameSection); }
+    std::string name() {
+        return getCharRange(NameSection);
+    }
 
     // Check wether save slot 0 is active or not
-    bool active() { return getByteRange(ActiveSection)[0]; }
+    bool active() {
+        return getByteRange(ActiveSection)[0];
+    }
 };
 
 } // namespace savepatcher

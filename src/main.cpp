@@ -4,7 +4,7 @@
 
 // TODO: Command line arguments
 int main(int argc, char **argv) {
-    auto file{savepatcher::SaveFile("../steam.sl2")};
+    auto file{savepatcher::SaveFile("../pirated.sl2")};
 
     fmt::print("Name: {}\n", file.name());
     fmt::print("Slot 0 active: {}\n", file.active());

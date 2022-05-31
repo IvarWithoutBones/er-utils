@@ -1,32 +1,48 @@
+#pragma once
+
 #include <span>
 #include <stdexcept>
 #include <vector>
-
 #include <fmt/format.h>
 #include <openssl/md5.h>
 
 namespace savepatcher {
 
-using u16 = uint_fast16_t;                         //!< Unsigned 16-bit integer
-using u8 = uint_fast8_t;                           //!< Unsigned 8-bit integer
-using Md5Hash = std::array<u8, MD5_DIGEST_LENGTH>; //!< MD5 hash
-constexpr static int bitsInByte = 0x8;             //!< Number of bits in a byte
-constexpr static int bitsInShort = 0x10;           //!< Number of bits in a short
+using u64 = __uint64_t; //!< Unsigned 64-bit integer
+using u32 = __uint32_t; //!< Unsigned 32-bit integer
+using u16 = __uint16_t; //!< Unsigned 16-bit integer
+using u8 = __uint8_t;   //!< Unsigned 8-bit integer
 
-// Generate the MD5 checksum of the given string.
-inline Md5Hash GenerateMd5(std::string_view input) {
+using Md5Hash = std::array<u8, MD5_DIGEST_LENGTH>; //!< MD5 hash
+
+/**
+ * @brief Calculate the MD5 hash of a span of bytes
+ * @param bytes The bytes to hash
+ * @return The MD5 hash of the bytes
+ */
+inline Md5Hash GenerateMd5(std::span<u8> input) {
     MD5_CTX sha256;
     Md5Hash hash{};
 
     MD5_Init(&sha256);
-    MD5_Update(&sha256, input.data(), input.size());
+    MD5_Update(&sha256, input.data(), input.size_bytes());
     MD5_Final(hash.data(), &sha256);
 
     return hash;
 }
 
-// A wrapper around std::runtime_error with {fmt} formatting
-// Copied from https://github.com/skyline-emu/skyline/blob/8826c113b0bdd602ba302df7ad47febe751d45d1/app/src/main/cpp/skyline/common/base.h#L76
+/**
+ * @brief A convert a std::span to a hex string
+ * @param span The span to convert
+ * @return An uppercase hex string
+ */
+inline std::string FormatHex(const std::span<u8> data)  {
+    return fmt::format("{:X}", fmt::join(data, ""));
+};
+
+/**
+ * @brief A wrapper around std::runtime_error with {fmt} formatting
+ */
 class exception : public std::runtime_error {
   public:
     template <typename S, typename... Args> constexpr auto Format(S formatString, Args &&...args) {

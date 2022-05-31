@@ -1,14 +1,21 @@
 #include <fmt/format.h>
-
 #include "savefile.h"
 
 // TODO: Command line arguments
 int main(int argc, char **argv) {
-    auto file{savepatcher::SaveFile("../pirated.sl2")};
+    auto sourceFile{savepatcher::SaveFile("../saves/ashley.sl2")};
+    auto outputFile = "./output.sl2";
+    auto steamId = 76561198257350685;
 
-    fmt::print("Name: {}\n", file.name());
-    fmt::print("Slot 0 active: {}\n", file.active());
+    fmt::print("Name: {}\n", sourceFile.name());
+    fmt::print("Slot 0 active: {}\n", sourceFile.active());
 
-    file.replaceSteamId(76561198257350685);
-    file.write("./output.sl2");
+    sourceFile.replaceSteamId(steamId);
+    fmt::print("Patched Steam ID: {} -> {}\n", sourceFile.steamId(), steamId);
+
+    auto newChecksum{sourceFile.recalculateChecksum()};
+    fmt::print("Patched save header checksum: {} -> {}\n", sourceFile.checksum(), newChecksum);
+
+    sourceFile.write(outputFile);
+    fmt::print("Succesfully wrote output to file '{}'\n", outputFile);
 };

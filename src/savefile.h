@@ -1,3 +1,4 @@
+#include "util.h"
 #include <span>
 #include <string>
 #include <vector>
@@ -10,87 +11,135 @@ struct Section {
     size_t length;
     size_t size;
 
-    constexpr Section(size_t offset, size_t length) : offset{offset}, size{length}, length{offset + length} {}
+    constexpr Section(size_t offset, size_t size) : offset{offset}, size{size}, length{offset + size} {}
+
+    /**
+     * @brief Replace a section inside of the save file
+     * @param data The data to modify
+     * @param newSection The new data to replace the old section with
+     */
+    constexpr void replace(std::span<u8> data, const std::span<u8> newSection) const {
+        if (offset < 0 || offset > data.size_bytes() || size > data.size_bytes())
+            throw exception("Invalid offset range while replacing: [{}, {}], size: {}", offset, length, data.size_bytes());
+        if (newSection.size_bytes() != size)
+            throw exception("New section size {} does not match old section size {}", newSection.size_bytes(), size);
+
+        std::copy(newSection.begin(), newSection.end(), data.begin() + offset);
+    }
+
+    /**
+     * @brief Get the range of bytes from the given data
+     * @param data The data to return the range from
+     * @return A span containing the range of bytes from the given offset
+     */
+    constexpr std::span<u8> bytesFrom(const std::span<u8> data) const {
+        if (offset < 0 || offset > data.size_bytes() || size > data.size_bytes())
+            throw exception("Invalid offset range: [{}, {}], size: {}", offset, length, data.size_bytes());
+
+        return data.subspan(offset, length - offset);
+    }
+
+    /**
+     * @brief Get the range of bytes from the given data as a string
+     * @param data The data to return the range from
+     * @return A string containing the range of bytes from the given offset
+     */
+    std::string charsFrom(const std::span<u8> data) const {
+        auto section{bytesFrom(data)};
+        auto chars{static_cast<u8 *>(section.data())};
+        return {chars, chars + section.size_bytes()};
+    }
+
+    /**
+     * @brief Get the range of bytes from the given data as a hex string
+     * @param data The data to return the range from
+     * @return A string containing the range of bytes in an uppercase hex string
+     */
+    std::string hexFrom(const std::span<u8> data) const {
+        auto section{bytesFrom(data)};
+        return FormatHex(section);
+    }
 };
 
+/**
+ * @brief Elden Ring save file parser and patcher
+ * @param filename The path to the save file
+ */
 class SaveFile {
   private:
-    unsigned long steamId;
+    constexpr static int SaveFileSize = 0x1BA03D0;                       //!< The size of the save file, used for validation
+    constexpr static Section HeaderBNDSection{0x0, 0x3};                 //!< The section containing the characters BND, used for validation
+    constexpr static Section SaveHeaderSection{0x19003B0, 0x60000};      //!< The section containing the save header
+    constexpr static Section SaveHeaderChecksumSection{0x19003A0, 0x10}; //!< The section containing the checksum of the save header
+    constexpr static Section SteamIdSection{0x19003B4, 0x8};             //!< The section containing the Steam ID
+    constexpr static Section ActiveSection{0x1901D04, 0x1};              //!< The section containing a bool wether the save slot is active
+    constexpr static Section NameSection{0x1901D0E, 0x22};               //!< The section containing the name of the character
 
-    // The offsets of the data sections
-    constexpr static int SaveFileSize = 0x1BA03D0;
-    constexpr static Section HeaderBNDSection{0x0, 0x3};
-    constexpr static Section SaveHeaderSection{0x19003B0, 0x60000};
-    constexpr static Section SaveHeaderChecksumSection{0x19003A0, 0x10};
-    constexpr static Section SteamIdSection{0x19003B4, 0x8};
-    constexpr static Section ActiveSection{0x1901D04, 0x1};
-    constexpr static Section NameSection{0x1901D0E, 0x22};
+    std::vector<u8> saveDataContainer; //!< The container the save data is stored in
+    std::vector<u8> patchedSaveData;   //!< The save data to modify
+    std::span<u8> saveData;            //!< A span of the original save data
 
-    // The raw data stored in the save file as raw bytes
-    std::vector<uint8_t> originalSaveData;
+    /**
+     * @brief Load a save file into memory
+     * @param filename The path to the file
+     */
+    std::vector<u8> loadFile(const std::string &filename);
 
-    // A span to read the save file data from
-    std::span<uint8_t> saveData;
-
-    // The save data to write patched data to
-    std::vector<uint8_t> patchedSaveData;
-
-    // Load a save file from a file on disk
-    std::vector<uint8_t> loadFile(const std::string &filename);
-
-    // Validate a file is an Elden Ring save file
-    void validateData(std::span<uint8_t> &data, const std::string &targetMsg);
-
-    // Recalculate the save header checksum
-    void recalculateChecksum();
-
-    // Get the Steam ID from the save file
-    unsigned long getSteamId() {
-        return toLittleEndian(SteamIdSection);
-    }
-
-    // Get a range of raw bytes from the save data
-    std::span<uint8_t> getByteRange(Section range, std::span<uint8_t> &data);
-    std::span<uint8_t> getByteRange(Section range) {
-        return getByteRange(range, saveData);
-    }
-
-    // Get a range of unformatted bytes from the save data as an ascii string
-    std::string getCharRange(Section range, std::span<uint8_t> &data);
-    std::string getCharRange(Section range) {
-        return getCharRange(range, saveData);
-    }
-
-    // Convert a range of bytes to a little endian 16 bit integer
-    unsigned long toLittleEndian(Section range, std::span<uint8_t> &data);
-    unsigned long toLittleEndian(Section range) {
-        return toLittleEndian(range, saveData);
-    };
+    /**
+     * @brief Validate a file is an Elden Ring save file
+     * @param data The data to validate
+     * @param target The name of the file to validate, used for error messages
+     */
+    void validateData(std::span<u8> data, const std::string &target);
 
   public:
-    SaveFile(const std::string &filename) {
-        originalSaveData = loadFile(filename);
-        patchedSaveData = originalSaveData;
-        saveData = {originalSaveData.data(), originalSaveData.size()};
-
-        steamId = getSteamId();
+    SaveFile(const std::string &filename) : saveDataContainer{loadFile(filename)}, saveData{saveDataContainer}, patchedSaveData{saveDataContainer} {
+        validateData(saveData, filename);
     }
 
-    // Write the patched save data to a file
+    /**
+     * @brief Write the patched save data to a file
+     * @param filename The path to the save file
+     */
     void write(const std::string &filename);
 
-    // Replace the steam ID hardcoded in the save file with the given steam ID
-    void replaceSteamId(unsigned long steamId);
+    /**
+     * @brief Replace the Steam ID hardcoded in the save header
+     * @param steamId The new Steam ID
+     */
+    void replaceSteamId(u64 steamId);
 
-    // Get the name of the character in save slot 0
-    std::string name() {
-        return getCharRange(NameSection);
-    }
+    /**
+     * @brief Get the Steam ID inside of the save header
+     * @return The Steam ID
+     */
+    static u64 steamId(const std::span<u8> data);
+    u64 steamId() {
+        return steamId(saveData);
+    };
 
-    // Check wether save slot 0 is active or not
-    bool active() {
-        return getByteRange(ActiveSection)[0];
-    }
+    /**
+     * @brief Get the name of the character in save slot 0
+     * @return The name of the character in save slot 0
+     */
+    std::string name() const;
+
+    /**
+     * @brief Check wether save slot 0 is active
+     * @return True if save slot 0 is active, false otherwise
+     */
+    bool active() const;
+
+    /**
+     * @brief Get the checksum of the save header
+     * @return The checksum of the save header
+     */
+    std::string checksum() const;
+
+    /**
+     * @brief Recalculate and replace the checksum of the save header
+     */
+    std::string recalculateChecksum();
 };
 
 } // namespace savepatcher

@@ -12,8 +12,8 @@ void SaveFile::validateData(std::span<u8> data, const std::string &target) {
 }
 
 std::vector<u8> SaveFile::loadFile(const std::string &filename) {
-    std::vector<u8> data;
     std::ifstream file(filename, std::ios::in | std::ios::binary);
+    std::vector<u8> data;
     if (!file.is_open())
         throw exception("Could not open file '{}'", filename);
 
@@ -23,8 +23,8 @@ std::vector<u8> SaveFile::loadFile(const std::string &filename) {
 }
 
 void SaveFile::write(const std::string &filename) {
-    validateData(patchedSaveData, "Generated data");
     std::ofstream file(filename, std::ios::out | std::ios::binary);
+    validateData(patchedSaveData, "Generated data");
     if (!file.is_open())
         throw exception("Could not open file '{}'", filename);
 
@@ -57,7 +57,7 @@ void SaveFile::replaceSteamId(u64 inputSteamId) {
     SteamIdSection.replace(patchedSaveData, newSteamIdBytes);
 }
 
-u64 SaveFile::steamId(const std::span<u8> data) {
+u64 SaveFile::steamId(const std::span<u8> data) const {
     auto section{SteamIdSection.bytesFrom(data)};
     if (section.size_bytes() % sizeof(u64))
         throw exception("Invalid Steam ID section size: {}", section.size_bytes());
@@ -65,16 +65,20 @@ u64 SaveFile::steamId(const std::span<u8> data) {
     return *reinterpret_cast<u64 *>(section.data());
 }
 
-std::string SaveFile::checksum() const {
-    return {SaveHeaderChecksumSection.hexFrom(saveData)};
+std::string SaveFile::checksum(const std::span<u8> data) const {
+    return SaveHeaderChecksumSection.hexFrom(data);
 }
 
-bool SaveFile::active() const {
-    return ActiveSection.bytesFrom(saveData)[0] == 1;
+bool SaveFile::active(const std::span<u8> data) const {
+    return ActiveSection.bytesFrom(data)[0] == 1;
 }
 
-std::string SaveFile::name() const {
-    return NameSection.charsFrom(saveData);
+std::string SaveFile::name(const std::span<u8> data) const {
+    return NameSection.charsFrom(data);
 }
+
+u16 SaveFile::level(const std::span<u8> data) const {
+    return static_cast<u16>(LevelSection.bytesFrom(data).front());
+};
 
 }; // namespace savepatcher

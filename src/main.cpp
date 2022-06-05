@@ -3,11 +3,12 @@
 
 // TODO: Command line arguments
 int main(int argc, char **argv) {
-    auto sourceFile{savepatcher::SaveFile("../saves/ashley.sl2")};
+    auto sourceFile{savepatcher::SaveFile("../steam.sl2")};
     auto outputFile = "./output.sl2";
     auto steamId = 76561198257350685;
 
     fmt::print("Name: {}\n", sourceFile.name());
+    fmt::print("Level: {}\n", sourceFile.level());
     fmt::print("Slot 0 active: {}\n", sourceFile.active());
 
     sourceFile.replaceSteamId(steamId);

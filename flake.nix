@@ -1,5 +1,5 @@
 rec {
-  description = "A small program to patch different Steam IDs into Elden Ring savefiles";
+  description = "A utility to patch different Steam IDs into Elden Ring savefiles";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
@@ -20,8 +20,8 @@ rec {
     in
     {
       overlays.default = final: prev: {
-        er-savepatcher = with final; clang13Stdenv.mkDerivation rec {
-          pname = "er-savepatcher";
+        erutils = with final; clang13Stdenv.mkDerivation rec {
+          pname = "erutils";
           inherit version;
 
           src = self;
@@ -37,16 +37,16 @@ rec {
 
           meta = with lib; {
             inherit description;
-            homepage = "https://github.com/IvarWithoutBones/er-savepatcher";
-            license = licenses.mit;
+            homepage = "https://github.com/IvarWithoutBones/erutils";
+            license = licenses.asl20;
             platforms = platforms.linux;
           };
         };
       };
 
       packages = forAllSystems (system: {
-        inherit (nixpkgsFor.${system}) er-savepatcher;
-        default = (nixpkgsFor.${system}).er-savepatcher;
+        inherit (nixpkgsFor.${system}) erutils;
+        default = (nixpkgsFor.${system}).erutils;
       });
     };
 }

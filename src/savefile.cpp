@@ -43,8 +43,8 @@ size_t SaveFile::getActiveSlotIndex(const std::span<u8> data) const {
 };
 
 std::string SaveFile::recalculateChecksum() {
-    auto saveHeaderChecksum{util::generateMd5(SaveHeaderSection.bytesFrom(patchedSaveData))};
-    auto saveHeaderChecksumString{util::formatHex(saveHeaderChecksum)};
+    auto saveHeaderChecksum{GenerateMd5(SaveHeaderSection.bytesFrom(patchedSaveData))};
+    auto saveHeaderChecksumString{FormatHex(saveHeaderChecksum)};
     if (checksum() == saveHeaderChecksumString)
         throw exception("Save header checksum is already correct");
 
@@ -67,31 +67,29 @@ void SaveFile::replaceSteamId(u64 inputSteamId) {
     SteamIdSection.replace(patchedSaveData, newSteamIdBytes);
 }
 
+std::string SaveFile::checksum(const std::span<u8> data) const {
+    return FormatHex(SaveHeaderChecksumSection.bytesFrom(data));
+}
+
+std::string SaveFile::name(const std::span<u8> data) const {
+    return NameSection.charsFrom(data);
+}
+
+std::string SaveFile::timePlayed(const std::span<u8> data) const {
+    return SecondsToTimeStamp(SecondsPlayedSection.castInteger<u32>(data));
+};
+
+size_t SaveFile::activeSlot(const std::span<u8> data) const {
+    return activeSlotIndex;
+}
+
 u64 SaveFile::steamId(const std::span<u8> data) const {
     return SteamIdSection.castInteger<u64>(data);
 }
 
-std::string SaveFile::checksum(const std::span<u8> data) const {
-    return util::formatHex(SaveHeaderChecksumSection.bytesFrom(data));
-}
 
-size_t SaveFile::activeSlot(const std::span<u8> data) const {
-    return getActiveSlotIndex(data);
-}
-
-std::string SaveFile::name(const std::span<u8> data) const {
-    Section section{NameSection.offset + (activeSlotIndex * SlotLength), NameSection.size};
-    return NameSection.charsFrom(data);
-}
-
-size_t SaveFile::level(const std::span<u8> data) const {
-    Section section{LevelSection.offset + (activeSlotIndex * SlotLength), LevelSection.size};
-    return section.bytesFrom(data).front();
-};
-
-std::string SaveFile::timePlayed(const std::span<u8> data) const {
-    Section section{SecondsPlayedSection.offset + (activeSlotIndex * SlotLength), SecondsPlayedSection.size};
-    return util::secondsToTimestamp(section.castInteger<u32>(data));
+u32 SaveFile::level(const std::span<u8> data) const {
+    return LevelSection.bytesFrom(data).front();
 };
 
 }; // namespace savepatcher

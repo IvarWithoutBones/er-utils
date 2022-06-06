@@ -1,10 +1,10 @@
 #pragma once
 
+#include <fmt/format.h>
+#include <openssl/md5.h>
 #include <span>
 #include <stdexcept>
 #include <vector>
-#include <fmt/format.h>
-#include <openssl/md5.h>
 
 namespace savepatcher {
 
@@ -36,7 +36,7 @@ inline Md5Hash GenerateMd5(std::span<u8> input) {
  * @param span The span to convert
  * @return An uppercase hex string
  */
-inline std::string FormatHex(const std::span<u8> data)  {
+inline std::string FormatHex(const std::span<u8> data) {
     return fmt::format("{:X}", fmt::join(data, ""));
 };
 

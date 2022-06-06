@@ -66,18 +66,20 @@ struct Section {
  */
 class SaveFile {
   private:
-    constexpr static int SaveFileSize = 0x1BA03D0;                       //!< The size of the save file, used for validation
+    constexpr static size_t SaveFileSize = 0x1BA03D0;                    //!< The size of the save file, used for validation
+    constexpr static size_t SlotLength = 0x24C;                          //!< The length of a save slot
     constexpr static Section HeaderBNDSection{0x0, 0x3};                 //!< The section containing the characters BND, used for validation
     constexpr static Section SaveHeaderSection{0x19003B0, 0x60000};      //!< The section containing the save header
     constexpr static Section SaveHeaderChecksumSection{0x19003A0, 0x10}; //!< The section containing the checksum of the save header
     constexpr static Section SteamIdSection{0x19003B4, 0x8};             //!< The section containing the Steam ID
-    constexpr static Section ActiveSection{0x1901D04, 0x1};              //!< The section containing a bool wether the save slot is active
+    constexpr static Section ActiveSection{0x1901D04, 0x10};             //!< The section containing a bool wether the save slot is active
     constexpr static Section NameSection{0x1901D0E, 0x22};               //!< The section containing the name of the character
     constexpr static Section LevelSection{0x1901D30, 0x1};               //!< The section containing the level of the character
 
     std::vector<u8> saveDataContainer; //!< The container the save data is stored in
     std::vector<u8> patchedSaveData;   //!< The save data to modify
     std::span<u8> saveData;            //!< A span of the original save data
+    size_t activeSlotIndex;            //!< The index of the active slot in the save file
 
     /**
      * @brief Load a save file into memory
@@ -92,9 +94,16 @@ class SaveFile {
      */
     void validateData(std::span<u8> data, const std::string &target);
 
+    /**
+     * @brief Get the index of the active save slot, this can be a number between 0 and 10
+     * @return The index of the first active save slot
+     */
+    size_t getActiveSlotIndex(std::span<u8> data) const;
+
   public:
     SaveFile(const std::string &filename) : saveDataContainer{loadFile(filename)}, saveData{saveDataContainer}, patchedSaveData{saveDataContainer} {
         validateData(saveData, filename);
+        activeSlotIndex = getActiveSlotIndex(saveData);
     }
 
     /**
@@ -131,8 +140,8 @@ class SaveFile {
      * @brief Get the level of the character in save slot 0
      * @return The level of the character in save slot 0
      */
-    u16 level(const std::span<u8> data) const;
-    u16 level() const {
+    size_t level(const std::span<u8> data) const;
+    size_t level() const {
         return level(saveData);
     };
 
@@ -140,9 +149,9 @@ class SaveFile {
      * @brief Check wether save slot 0 is active
      * @return True if save slot 0 is active, false otherwise
      */
-    bool active(const std::span<u8> data) const;
-    bool active() const {
-        return active(saveData);
+    size_t activeSlot(const std::span<u8> data) const;
+    size_t activeSlot() const {
+        return activeSlot(saveData);
     };
 
     /**

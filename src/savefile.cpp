@@ -32,6 +32,15 @@ void SaveFile::write(const std::string &filename) {
     file.close();
 }
 
+size_t SaveFile::getActiveSlotIndex(const std::span<u8> data) const {
+    auto section{ActiveSection.bytesFrom(data)};
+    auto found{std::find(section.begin(), section.end(), true)};
+    if (found == std::end(section))
+        throw exception("Could not find active slot index");
+
+    return std::distance(section.begin(), found);
+};
+
 std::string SaveFile::recalculateChecksum() {
     auto saveHeaderChecksum{GenerateMd5(SaveHeaderSection.bytesFrom(patchedSaveData))};
     auto saveHeaderChecksumString{FormatHex(saveHeaderChecksum)};
@@ -69,16 +78,18 @@ std::string SaveFile::checksum(const std::span<u8> data) const {
     return SaveHeaderChecksumSection.hexFrom(data);
 }
 
-bool SaveFile::active(const std::span<u8> data) const {
-    return ActiveSection.bytesFrom(data)[0] == 1;
+size_t SaveFile::activeSlot(const std::span<u8> data) const {
+    return getActiveSlotIndex(data);
 }
 
 std::string SaveFile::name(const std::span<u8> data) const {
+    Section section{NameSection.offset + (activeSlotIndex * SlotLength), NameSection.size};
     return NameSection.charsFrom(data);
 }
 
-u16 SaveFile::level(const std::span<u8> data) const {
-    return static_cast<u16>(LevelSection.bytesFrom(data).front());
+size_t SaveFile::level(const std::span<u8> data) const {
+    Section section{LevelSection.offset + (activeSlotIndex * SlotLength), LevelSection.size};
+    return section.bytesFrom(data).front();
 };
 
 }; // namespace savepatcher

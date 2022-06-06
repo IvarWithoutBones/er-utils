@@ -43,8 +43,8 @@ size_t SaveFile::getActiveSlotIndex(const std::span<u8> data) const {
 };
 
 std::string SaveFile::recalculateChecksum() {
-    auto saveHeaderChecksum{util::GenerateMd5(SaveHeaderSection.bytesFrom(patchedSaveData))};
-    auto saveHeaderChecksumString{util::FormatHex(saveHeaderChecksum)};
+    auto saveHeaderChecksum{util::generateMd5(SaveHeaderSection.bytesFrom(patchedSaveData))};
+    auto saveHeaderChecksumString{util::formatHex(saveHeaderChecksum)};
     if (checksum() == saveHeaderChecksumString)
         throw exception("Save header checksum is already correct");
 
@@ -68,15 +68,11 @@ void SaveFile::replaceSteamId(u64 inputSteamId) {
 }
 
 u64 SaveFile::steamId(const std::span<u8> data) const {
-    auto section{SteamIdSection.bytesFrom(data)};
-    if (section.size_bytes() % sizeof(u64))
-        throw exception("Invalid Steam ID section size: {}", section.size_bytes());
-
-    return *reinterpret_cast<u64 *>(section.data());
+    return SteamIdSection.castInteger<u64>(data);
 }
 
 std::string SaveFile::checksum(const std::span<u8> data) const {
-    return SaveHeaderChecksumSection.hexFrom(data);
+    return util::formatHex(SaveHeaderChecksumSection.bytesFrom(data));
 }
 
 size_t SaveFile::activeSlot(const std::span<u8> data) const {
@@ -95,7 +91,7 @@ size_t SaveFile::level(const std::span<u8> data) const {
 
 std::string SaveFile::timePlayed(const std::span<u8> data) const {
     Section section{SecondsPlayedSection.offset + (activeSlotIndex * SlotLength), SecondsPlayedSection.size};
-    return util::SecondsToTimestamp(*reinterpret_cast<u32 *>(section.bytesFrom(data).data()));
+    return util::secondsToTimestamp(section.castInteger<u32>(data));
 };
 
 }; // namespace savepatcher

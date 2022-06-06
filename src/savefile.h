@@ -14,17 +14,21 @@ struct Section {
     constexpr Section(size_t offset, size_t size) : offset{offset}, size{size}, length{offset + size} {}
 
     /**
-     * @brief Replace a section inside of the save file
-     * @param data The data to modify
-     * @param newSection The new data to replace the old section with
+     * @brief Get the range of bytes from the given data as an integer
+     * @param data The data to return the range from
+     * @return A number containing the range of bytes from the given offset. This can be one of u8, u16, u32 or u64
      */
-    constexpr void replace(std::span<u8> data, const std::span<u8> newSection) const {
-        if (offset < 0 || offset > data.size_bytes() || size > data.size_bytes())
-            throw exception("Invalid offset range while replacing: [{}, {}], size: {}", offset, length, data.size_bytes());
-        if (newSection.size_bytes() != size)
-            throw exception("New section size {} does not match old section size {}", newSection.size_bytes(), size);
+    template <typename T> constexpr T castInteger(const std::span<u8> data) const {
+        // clang-format off
+        using Type = std::conditional_t<sizeof(T) % sizeof(u64) == 0, u64,
+                     std::conditional_t<sizeof(T) % sizeof(u32) == 0, u32,
+                     std::conditional_t<sizeof(T) % sizeof(u16) == 0, u16, u8>>>;
+        // clang-format on
 
-        std::copy(newSection.begin(), newSection.end(), data.begin() + offset);
+        if constexpr (sizeof(T) == sizeof(Type))
+            return static_cast<T>(*reinterpret_cast<const Type*>(data.data() + offset));
+        else
+            throw exception("Invalid size for castInteger: {}, expected: {}", sizeof(T), sizeof(Type));
     }
 
     /**
@@ -48,15 +52,20 @@ struct Section {
         auto section{bytesFrom(data)};
         auto chars{static_cast<u8 *>(section.data())};
         return {chars, chars + section.size_bytes()};
-    }
+    };
 
     /**
-     * @brief Get the range of bytes from the given data as a hex string
-     * @param data The data to return the range from
-     * @return A string containing the range of bytes in an uppercase hex string
+     * @brief Replace a section inside of the save file
+     * @param data The data to modify
+     * @param newSection The new data to replace the old section with
      */
-    std::string hexFrom(const std::span<u8> data) const {
-        return util::FormatHex(bytesFrom(data));
+    constexpr void replace(std::span<u8> data, const std::span<u8> newSection) const {
+        if (offset < 0 || offset > data.size_bytes() || size > data.size_bytes())
+            throw exception("Invalid offset range while replacing: [{}, {}], size: {}", offset, length, data.size_bytes());
+        if (newSection.size_bytes() != size)
+            throw exception("New section size {} does not match old section size {}", newSection.size_bytes(), size);
+
+        std::copy(newSection.begin(), newSection.end(), data.begin() + offset);
     }
 };
 
@@ -82,23 +91,10 @@ class SaveFile {
     std::span<u8> saveData;            //!< A span of the original save data
     size_t activeSlotIndex;            //!< The index of the active slot in the save file
 
-    /**
-     * @brief Load a save file into memory
-     * @param filename The path to the file
-     */
     std::vector<u8> loadFile(const std::string &filename);
 
-    /**
-     * @brief Validate a file is an Elden Ring save file
-     * @param data The data to validate
-     * @param target The name of the file to validate, used for error messages
-     */
     void validateData(std::span<u8> data, const std::string &target);
 
-    /**
-     * @brief Get the index of the active save slot, this can be a number between 0 and 10
-     * @return The index of the first active save slot
-     */
     size_t getActiveSlotIndex(std::span<u8> data) const;
 
   public:

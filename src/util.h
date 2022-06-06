@@ -21,21 +21,21 @@ using Md5Hash = std::array<u8, MD5_DIGEST_LENGTH>; //!< MD5 hash
  * @param bytes The bytes to hash
  * @return The MD5 hash of the bytes
  */
-Md5Hash GenerateMd5(std::span<u8> input);
+Md5Hash generateMd5(std::span<u8> input);
 
 /**
  * @brief Convert a number of seconds to a human-readable timestamp
  * @param seconds The number of seconds
  * @return The human-readable timestamp
  */
-std::string SecondsToTimestamp(const time_t input);
+std::string secondsToTimestamp(const time_t input);
 
 /**
  * @brief A convert a std::span to a hex string
  * @param span The span to convert
  * @return An uppercase hex string
  */
-std::string FormatHex(const std::span<u8> data);
+std::string formatHex(const std::span<u8> data);
 
 } // namespace util
 

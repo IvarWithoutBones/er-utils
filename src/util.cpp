@@ -4,7 +4,7 @@
 
 namespace savepatcher {
 
-util::Md5Hash util::GenerateMd5(std::span<u8> input) {
+util::Md5Hash util::generateMd5(std::span<u8> input) {
     MD5_CTX sha256;
     Md5Hash hash{};
 
@@ -15,11 +15,7 @@ util::Md5Hash util::GenerateMd5(std::span<u8> input) {
     return hash;
 }
 
-std::string util::FormatHex(const std::span<u8> data) {
-    return fmt::format("{:X}", fmt::join(data, ""));
-};
-
-std::string util::SecondsToTimestamp(const time_t input) {
+std::string util::secondsToTimestamp(const time_t input) {
     constexpr static auto MinutesInHour = 60;
     constexpr static auto SecondsInHour = MinutesInHour * 60;
 
@@ -30,5 +26,9 @@ std::string util::SecondsToTimestamp(const time_t input) {
 
     return fmt::format("{:02}:{:02}:{:02}", hours.count(), minutes.count(), seconds.count());
 }
+
+std::string util::formatHex(const std::span<u8> data) {
+    return fmt::format("{:X}", fmt::join(data, ""));
+};
 
 } // namespace savepatcher

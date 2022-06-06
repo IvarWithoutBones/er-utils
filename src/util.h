@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <fmt/format.h>
 #include <openssl/md5.h>
 #include <span>
@@ -29,6 +30,23 @@ inline Md5Hash GenerateMd5(std::span<u8> input) {
     MD5_Final(hash.data(), &sha256);
 
     return hash;
+}
+
+/**
+ * @brief Convert a number of seconds to a human-readable timestamp
+ * @param seconds The number of seconds
+ * @return The human-readable timestamp
+ */
+static std::string SecondsToTimestamp(const time_t input) {
+    constexpr static auto MinutesInHour = 60;
+    constexpr static auto SecondsInHour = MinutesInHour * 60;
+
+    auto hours{std::chrono::duration_cast<std::chrono::hours>(std::chrono::seconds(input))};
+    auto minutes{std::chrono::duration_cast<std::chrono::minutes>(std::chrono::seconds(input - (hours.count() * SecondsInHour)))};
+    auto seconds{std::chrono::duration_cast<std::chrono::seconds>(
+        std::chrono::seconds(input - (hours.count() * SecondsInHour) - (minutes.count() * MinutesInHour)))};
+
+    return fmt::format("{:02}:{:02}:{:02}", hours.count(), minutes.count(), seconds.count());
 }
 
 /**

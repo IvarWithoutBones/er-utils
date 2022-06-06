@@ -72,9 +72,10 @@ class SaveFile {
     constexpr static Section SaveHeaderSection{0x19003B0, 0x60000};      //!< The section containing the save header
     constexpr static Section SaveHeaderChecksumSection{0x19003A0, 0x10}; //!< The section containing the checksum of the save header
     constexpr static Section SteamIdSection{0x19003B4, 0x8};             //!< The section containing the Steam ID
-    constexpr static Section ActiveSection{0x1901D04, 0x10};             //!< The section containing a bool wether the save slot is active
+    constexpr static Section ActiveSection{0x1901D04, 0xA};              //!< The section containing a bool wether the save slot is active
     constexpr static Section NameSection{0x1901D0E, 0x22};               //!< The section containing the name of the character
     constexpr static Section LevelSection{0x1901D30, 0x1};               //!< The section containing the level of the character
+    constexpr static Section SecondsPlayedSection{0x1901D34, 0x4};       //!< The section containing the amount of seconds played
 
     std::vector<u8> saveDataContainer; //!< The container the save data is stored in
     std::vector<u8> patchedSaveData;   //!< The save data to modify
@@ -119,6 +120,11 @@ class SaveFile {
     void replaceSteamId(u64 steamId);
 
     /**
+     * @brief Recalculate and replace the checksum of the save header
+     */
+    std::string recalculateChecksum();
+
+    /**
      * @brief Get the Steam ID inside of the save header
      * @return The Steam ID
      */
@@ -137,8 +143,8 @@ class SaveFile {
     };
 
     /**
-     * @brief Get the level of the character in save slot 0
-     * @return The level of the character in save slot 0
+     * @brief Get the level of the character in the active slot
+     * @return The level of the character
      */
     size_t level(const std::span<u8> data) const;
     size_t level() const {
@@ -146,8 +152,8 @@ class SaveFile {
     };
 
     /**
-     * @brief Check wether save slot 0 is active
-     * @return True if save slot 0 is active, false otherwise
+     * @brief Check which save slot is active
+     * @return The index of the active save slot
      */
     size_t activeSlot(const std::span<u8> data) const;
     size_t activeSlot() const {
@@ -164,9 +170,13 @@ class SaveFile {
     };
 
     /**
-     * @brief Recalculate and replace the checksum of the save header
+     * @brief Get the amount of seconds played in the active slot
+     * @return The amount of seconds played
      */
-    std::string recalculateChecksum();
+    std::string timePlayed(const std::span<u8> data) const;
+    std::string timePlayed() const {
+        return timePlayed(saveData);
+    };
 };
 
 } // namespace savepatcher

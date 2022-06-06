@@ -1,5 +1,6 @@
 #include "savefile.h"
 #include "util.h"
+#include <fmt/chrono.h>
 #include <fmt/format.h>
 #include <fstream>
 #include <span>
@@ -34,7 +35,7 @@ void SaveFile::write(const std::string &filename) {
 
 size_t SaveFile::getActiveSlotIndex(const std::span<u8> data) const {
     auto section{ActiveSection.bytesFrom(data)};
-    auto found{std::find(section.begin(), section.end(), true)};
+    auto found{std::find(section.begin(), section.end(), sizeof(true))};
     if (found == std::end(section))
         throw exception("Could not find active slot index");
 
@@ -90,6 +91,11 @@ std::string SaveFile::name(const std::span<u8> data) const {
 size_t SaveFile::level(const std::span<u8> data) const {
     Section section{LevelSection.offset + (activeSlotIndex * SlotLength), LevelSection.size};
     return section.bytesFrom(data).front();
+};
+
+std::string SaveFile::timePlayed(const std::span<u8> data) const {
+    Section section{SecondsPlayedSection.offset + (activeSlotIndex * SlotLength), SecondsPlayedSection.size};
+    return SecondsToTimestamp(*reinterpret_cast<u32 *>(section.bytesFrom(data).data()));
 };
 
 }; // namespace savepatcher

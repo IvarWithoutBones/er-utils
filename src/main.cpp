@@ -3,13 +3,14 @@
 
 // TODO: Command line arguments
 int main(int argc, char **argv) {
-    auto sourceFile{savepatcher::SaveFile("../steam.sl2")};
+    auto sourceFile{savepatcher::SaveFile("../saves/ashley.sl2")};
     auto outputFile = "./output.sl2";
     auto steamId = 76561198257350685;
 
     fmt::print("Active save slot: {}\n", sourceFile.activeSlot());
     fmt::print("Name: {}\n", sourceFile.name());
     fmt::print("Level: {}\n", sourceFile.level());
+    fmt::print("Time played: {}\n", sourceFile.timePlayed());
 
     sourceFile.replaceSteamId(steamId);
     fmt::print("Patched Steam ID: {} -> {}\n", sourceFile.steamId(), steamId);

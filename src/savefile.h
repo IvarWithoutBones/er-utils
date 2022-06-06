@@ -56,7 +56,7 @@ struct Section {
      * @return A string containing the range of bytes in an uppercase hex string
      */
     std::string hexFrom(const std::span<u8> data) const {
-        return FormatHex(bytesFrom(data));
+        return util::FormatHex(bytesFrom(data));
     }
 };
 

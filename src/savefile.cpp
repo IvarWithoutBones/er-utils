@@ -43,8 +43,8 @@ size_t SaveFile::getActiveSlotIndex(const std::span<u8> data) const {
 };
 
 std::string SaveFile::recalculateChecksum() {
-    auto saveHeaderChecksum{GenerateMd5(SaveHeaderSection.bytesFrom(patchedSaveData))};
-    auto saveHeaderChecksumString{FormatHex(saveHeaderChecksum)};
+    auto saveHeaderChecksum{util::GenerateMd5(SaveHeaderSection.bytesFrom(patchedSaveData))};
+    auto saveHeaderChecksumString{util::FormatHex(saveHeaderChecksum)};
     if (checksum() == saveHeaderChecksumString)
         throw exception("Save header checksum is already correct");
 
@@ -95,7 +95,7 @@ size_t SaveFile::level(const std::span<u8> data) const {
 
 std::string SaveFile::timePlayed(const std::span<u8> data) const {
     Section section{SecondsPlayedSection.offset + (activeSlotIndex * SlotLength), SecondsPlayedSection.size};
-    return SecondsToTimestamp(*reinterpret_cast<u32 *>(section.bytesFrom(data).data()));
+    return util::SecondsToTimestamp(*reinterpret_cast<u32 *>(section.bytesFrom(data).data()));
 };
 
 }; // namespace savepatcher

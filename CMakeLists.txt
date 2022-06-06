@@ -16,6 +16,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_executable(er-savepatcher
     src/main.cpp
     src/savefile.cpp
+    src/util.cpp
 )
 
 find_package(OpenSSL REQUIRED)

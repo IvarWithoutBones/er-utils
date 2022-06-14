@@ -7,6 +7,8 @@
 
 namespace savepatcher {
 
+constexpr static size_t SaveFileSize = 0x1BA03D0; //!< The size of an Elden Ring save file
+
 using u64 = __uint64_t; //!< Unsigned 64-bit integer
 using u32 = __uint32_t; //!< Unsigned 32-bit integer
 using u16 = __uint16_t; //!< Unsigned 16-bit integer
@@ -118,15 +120,6 @@ struct Section {
         auto chars{static_cast<u8 *>(section.data())};
         return {chars, chars + section.size_bytes()};
     };
-};
-
-/**
- * @brief A wrapper around Section that abstracts away different save slot addresses
- */
-struct SlotSection : public Section {
-    constexpr static size_t SlotLength = 0x24C; //!< The length of a save slot
-
-    constexpr SlotSection(size_t address, size_t size, size_t slot) : Section{address + (slot * SlotLength), size} {}
 };
 
 } // namespace savepatcher

@@ -5,40 +5,56 @@
 
 namespace savepatcher {
 
+/**
+ * @brief One of the characters in a save file
+ */
 class Character {
   private:
-    size_t slotIndex; //!< The index of the save slot, each character has a index.
-
-    constexpr static size_t SlotHeaderLength = 0x24C;                 //!< The length of a save slot
-    constexpr static Section ActiveSection{0x1901D04, 0xA};           //!< The section containing 10 bools indicating if a save slot at the same offset is active
-    const Section NameSection{ParseSection(0x1901D0E, 0x22)};         //!< The section containing the name of the character
-    const Section LevelSection{ParseSection(0x1901D30, 0x1)};         //!< The section containing the level of the character
-    const Section SecondsPlayedSection{ParseSection(0x1901D34, 0x4)}; //!< The section containing the number of seconds played
-    const Section DataSection{0x310 + (slotIndex * 0x10) + (slotIndex * 0x280000), 0x280000};
+    const size_t slotIndex;                                          //!< The index of the save slot, each character has a unique slot. This value can range between 0-10.
+    constexpr static Section ActiveSection{0x1901D04, 0xA};          //!< Contains booleans indicating if the character at address + slotIndex is active
+    const Section SlotSection{ParseSlot(0x310, 0x280000)};           //!< Contains the save data of the character
+    const Section SlotChecksumSection{ParseSlot(0x300, 0x10)};       //!< Contains the checksum of the data section
+    const Section SlotHeaderSection{ParseHeader(0x1901D0E, 0x24C)};  //!< Contains the slot header
+    const Section NameSection{ParseHeader(0x1901D0E, 0x22)};         //!< Contains the name of the character
+    const Section LevelSection{ParseHeader(0x1901D30, 0x1)};         //!< Contains the level of the character
+    const Section SecondsPlayedSection{ParseHeader(0x1901D34, 0x4)}; //!< Contains the number of seconds played
 
     /**
-     * @brief A section of a save slot containing a character
-     * @param offset The start index of the section
-     * @param size The length of the section
-     * @param offset An offset to apply to the address, this defaults to 0
-     * @return A section of a save slot
+     * @brief A wrapper around Section that provides the offsets for a save header
      */
-    constexpr Section ParseSection(size_t address, size_t size, size_t offset = 0) const {
-        return Section{address + offset + (slotIndex * SlotHeaderLength), size};
+    constexpr Section ParseHeader(size_t address, size_t size) const {
+        return Section{address + (slotIndex * SlotHeaderSection.size), size};
     }
 
-    std::string nameFrom(std::span<u8, SaveFileSize> data) const;
-    std::string timePlayedFrom(std::span<u8, SaveFileSize> data) const;
-    u64 levelFrom(std::span<u8, SaveFileSize> data) const;
-    bool activeFrom(std::span<u8, SaveFileSize> data, size_t slotIndex) const;
+    /**
+     * @brief A wrapper around Section that provides the offsets for a save slot
+     */
+    constexpr Section ParseSlot(size_t address, size_t size) const {
+        return Section{address + (slotIndex * 0x10) + (slotIndex * SlotSection.size), size};
+    }
+
+    std::string getName(SaveSpan data) const;
+    std::string getTimePlayed(SaveSpan data) const;
+    u64 getLevel(SaveSpan data) const;
+    bool isActive(SaveSpan data, size_t slotIndex) const;
 
   public:
-    constexpr Character(std::span<u8, SaveFileSize> file, size_t slotIndex) : slotIndex{slotIndex}, active{activeFrom(file, slotIndex)}, name{nameFrom(file)}, level{levelFrom(file)}, timePlayed{timePlayedFrom(file)} {}
-
     bool active;            //!< Whether the save slot is currently in use
     u64 level;              //!< The level of the character
     std::string name;       //!< The name of the character
-    std::string timePlayed; //!< The time played of the character
+    std::string timePlayed; //!< A timestamp of the characters play time
+
+    constexpr Character(SaveSpan data, size_t slotIndex) : slotIndex{slotIndex}, active{isActive(data, slotIndex)}, name{getName(data)}, level{getLevel(data)}, timePlayed{getTimePlayed(data)} {}
+
+    /**
+     * @brief Copy the currently active save slot into the given span
+     */
+    void copy(SaveSpan source, SaveSpan target, size_t targetSlotIndex) const;
+
+    /**
+     * @brief Recalculate and replace the checksum of the currently active save slot
+     */
+    void replaceSlotChecksum(SaveSpan data) const;
 };
 
 /**
@@ -47,74 +63,80 @@ class Character {
  */
 class SaveFile {
   private:
-    std::vector<u8> saveDataContainer;         //!< The container the save data is stored in
-    std::vector<u8> patchedSaveData;           //!< The save data to modify
-    std::span<u8, SaveFileSize> saveData;      //!< A span of the original save data
-    std::vector<Character> characterContainer; //!< The characters in the save file
+    constexpr static size_t SlotCount = 10; //!< The number of characters in the save file
+    std::vector<u8> sourceSaveDataContainer;
+    std::vector<u8> targetSaveDataContainer;
+    SaveSpan sourceSave;
+    SaveSpan targetSave;
 
-    constexpr static Section HeaderBNDSection{0x0, 0x3};                 //!< The section containing the characters BND, used for validation
-    constexpr static Section SaveHeaderSection{0x19003B0, 0x60000};      //!< The section containing the save header
-    constexpr static Section SaveHeaderChecksumSection{0x19003A0, 0x10}; //!< The section containing the checksum of the save header
-    constexpr static Section SteamIdSection{0x19003B4, 0x8};             //!< The section containing the Steam ID
+    constexpr static Section HeaderBNDSection{0x0, 0x3};                 //!< Contains the characters BND, used for validation
+    constexpr static Section SaveHeaderSection{0x19003B0, 0x60000};      //!< Contains the save header
+    constexpr static Section SaveHeaderChecksumSection{0x19003A0, 0x10}; //!< Contains the MD5 sum of the save header
+    constexpr static Section SteamIdSection{0x19003B4, 0x8};             //!< Contains one instance the Steam ID
 
-    std::vector<u8> loadFile(const std::string &filename);
+    std::vector<u8> loadFile(std::string filename);
+    void write(SaveSpan data, std::string filename);
 
-    void validateData(std::span<u8> data, const std::string &target);
+    /**
+     * @brief Validate a file is an Elden Ring save file
+     * @param data The data to validate
+     * @param target The name of the file to log if validation fails
+     */
+    void validateData(SaveSpan data, std::string target);
 
-    size_t getActiveSlotIndex(std::span<u8> data) const;
+    /**
+     * @brief Load the characters into the characters vector
+     */
+    std::vector<Character> parseCharacters(SaveSpan data) const;
+
+    /**
+     * @brief Recalculate and replace the save header and slot checksums
+     */
+    void recalculateChecksums(SaveSpan data) const;
+
+    /**
+     * @brief Replace the Steam ID inside the target save file
+     * @param source The data containing the old Steam ID to replace
+     * @param target The data containing the new Steam ID to replace with. The new data gets written to this
+     */
+    void replaceSteamId(SaveSpan source, SaveSpan target) const;
+
+  public:
+    std::vector<Character> characters; //!< The characters in the save file
+
+    constexpr SaveFile(std::string_view sourceFile, std::string_view targetFile) : sourceSaveDataContainer{loadFile(sourceFile.data())}, targetSaveDataContainer{loadFile(targetFile.data())}, sourceSave{sourceSaveDataContainer}, targetSave{targetSaveDataContainer}, characters{parseCharacters(sourceSave)} {
+        validateData(sourceSave, sourceFile.data());
+        validateData(targetSave, sourceFile.data());
+    }
 
     /**
      * @brief Write the patched save data to a file
-     * @param filename The path to the save file
      */
-    void write(std::span<u8> data, const std::string &filename);
-
-    void copyCharacter(std::span<u8> source, std::span<u8> target, size_t charIndex);
-
-    std::vector<Character> parseCharacters(std::span<u8, SaveFileSize> data) const;
-
-  public:
-    SaveFile(const std::string &filename) : saveDataContainer{loadFile(filename)}, saveData{saveDataContainer}, patchedSaveData{saveDataContainer}, characterContainer{parseCharacters(saveData)} {
-        validateData(saveData, filename);
-        // auto targetSave{loadFile("../backup/ER0000.backup1")};
-        // copyCharacter(saveDataContainer, targetSave, 0);
-    }
-
-    void write(const std::string &filename) {
-        write(patchedSaveData, filename);
-    }
-
-    std::vector<Character> characters() {
-        return characterContainer;
+    void write(std::string filename) {
+        write(targetSave, filename);
     }
 
     /**
-     * @brief Replace the Steam ID hardcoded in the save header
-     * @param steamId The new Steam ID
+     * @brief Copy a character between the source and target save files
+     * @param sourceSlotIndex The index of the source save slot to copy from
+     * @param targetSlotIndex The index of the target save slot to copy to
      */
-    void replaceSteamId(u64 steamId);
-
-    /**
-     * @brief Recalculate and replace the checksum of the save header
-     */
-    std::string recalculateChecksum();
+    void copyCharacter(size_t sourceSlotIndex, size_t targetSlotIndex) const;
 
     /**
      * @brief Get the Steam ID inside of the save header
-     * @return The Steam ID
      */
-    u64 steamId(const std::span<u8> data) const;
+    u64 steamId(SaveSpan data) const;
     u64 steamId() const {
-        return steamId(saveData);
+        return steamId(sourceSave);
     };
 
     /**
      * @brief Get the checksum of the save header
-     * @return The checksum of the save header
      */
-    std::string checksum(const std::span<u8> data) const;
+    std::string checksum(SaveSpan data) const;
     std::string checksum() const {
-        return checksum(saveData);
+        return checksum(sourceSave);
     };
 };
 

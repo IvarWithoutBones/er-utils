@@ -7,14 +7,14 @@
 
 namespace savepatcher {
 
-constexpr static size_t SaveFileSize = 0x1BA03D0; //!< The size of an Elden Ring save file
-
 using u64 = __uint64_t; //!< Unsigned 64-bit integer
 using u32 = __uint32_t; //!< Unsigned 32-bit integer
 using u16 = __uint16_t; //!< Unsigned 16-bit integer
 using u8 = __uint8_t;   //!< Unsigned 8-bit integer
 
-using Md5Hash = std::array<u8, MD5_DIGEST_LENGTH>; //!< MD5 hash
+constexpr static size_t SaveFileSize = 0x1BA03D0;  //!< The size of an Elden Ring save file
+using SaveSpan = std::span<u8, SaveFileSize>;      //!< A span of the save file
+using Md5Hash = std::array<u8, MD5_DIGEST_LENGTH>; //!< An MD5 hash
 
 /**
  * @brief Calculate the MD5 hash of a span of bytes
@@ -91,9 +91,9 @@ struct Section {
      */
     constexpr void replace(std::span<u8> data, const std::span<u8> newSection) const {
         if (address < 0 || address > data.size_bytes() || size > data.size_bytes())
-            throw exception("Invalid offset range while replacing: [{}, {}], size: {}", address, length, data.size_bytes());
+            throw exception("Invalid offset range while replacing: [0x{:X}, 0x{:X}], size: 0x{:X}", address, length, data.size_bytes());
         if (newSection.size_bytes() != size)
-            throw exception("New section size {} does not match old section size {}", newSection.size_bytes(), size);
+            throw exception("New section size 0x{:X} does not match old section size 0x{:X}", newSection.size_bytes(), size);
 
         std::copy(newSection.begin(), newSection.end(), data.begin() + address);
     }

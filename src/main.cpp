@@ -1,27 +1,30 @@
 #include "savefile.h"
 #include <fmt/format.h>
 
-const void printActiveCharacters(savepatcher::SaveFile &savefile) {
-    for (auto character : savefile.characters)
+const void printActiveCharacters(std::vector<savepatcher::Character> &characters) {
+    for (auto character : characters)
         if (character.active)
-            fmt::print("  {}: level {}, played for {}\n", character.name, character.level, character.timePlayed);
+            fmt::print("  slot {}: {}, level {}, played for {}\n", character.getSlotIndex(), character.name, character.level, character.timePlayed);
     fmt::print("\n");
 }
 
 // TODO: Command line arguments
 int main(int argc, char **argv) {
-    auto savefile{savepatcher::SaveFile("../saves/ashley.sl2", "../backup/ER0000.backup1")};
     auto outputFile = "./output.sl2";
+    auto savefile{savepatcher::SaveFile("../saves/ashley.sl2", "../saves/backup/ER0000.backup1")};
 
     fmt::print("Source file with Steam ID: {}\n", savefile.steamId());
-    printActiveCharacters(savefile);
-    savefile.copyCharacter(0, 0);
+    printActiveCharacters(savefile.sourceCharacters);
+    fmt::print("Target file with Steam ID: {}\n", savefile.steamId());
+    printActiveCharacters(savefile.targetCharacters);
+
+    savefile.appendSlot(1);
     savefile.write(outputFile);
 
     // TODO: specifying the second file shouldn't be required
-    auto newfile{savepatcher::SaveFile(outputFile, "../backup/ER0000.backup1")};
+    auto newfile{savepatcher::SaveFile(outputFile, "../er0000.sl2")};
     fmt::print("Generated file with Steam ID: {}\n", newfile.steamId());
-    printActiveCharacters(newfile);
+    printActiveCharacters(newfile.sourceCharacters);
 
     fmt::print("Succesfully wrote output to file '{}'\n", outputFile);
 };

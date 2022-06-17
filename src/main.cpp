@@ -3,7 +3,7 @@
 
 using namespace savepatcher;
 
-const void printActiveCharacters(std::vector<Character> &characters) {
+static void printActiveCharacters(std::vector<Character> &characters) {
     for (auto character : characters)
         if (character.active)
             fmt::print("  slot {}: {}, level {}, played for {}\n", character.getSlotIndex(), character.name, character.level, character.timePlayed);
@@ -11,7 +11,7 @@ const void printActiveCharacters(std::vector<Character> &characters) {
 }
 
 // TODO: Command line arguments
-int main(int argc, char **argv) {
+int main() {
     auto sourceSave{SaveFile("../saves/ashley.sl2")};
     auto targetSave{SaveFile("../saves/backup/ER0000.backup1")};
     constexpr std::string_view outputFile = "./output.sl2";
@@ -22,8 +22,6 @@ int main(int argc, char **argv) {
     fmt::print("Savefile to copy to with Steam ID: {}\n", sourceSave.steamId());
     printActiveCharacters(targetSave.slots);
 
-    targetSave.copySlot(targetSave, 0, 2);
-    targetSave.copySlot(sourceSave, 0, 0);
     targetSave.appendSlot(sourceSave, 0);
 
     fmt::print("Generated file:\n");
@@ -31,4 +29,4 @@ int main(int argc, char **argv) {
 
     sourceSave.write(outputFile);
     fmt::print("Succesfully wrote output to file '{}'\n", outputFile);
-};
+}

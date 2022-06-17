@@ -9,9 +9,9 @@ namespace savepatcher {
  * @brief One of the characters in a save file
  */
 class Character {
-  private:
+  public:
     const size_t slotIndex; //!< The index of the save slot, each character has a unique slot. This value can range between 0-9
-
+  private:
     /**
      * @brief Used to calculate a target address when copying a character
      */
@@ -49,27 +49,27 @@ class Character {
     }
 
     /**
-     * @brief Set a characters active status
+     * @brief Set a slots active status
      */
     void setActive(SaveSpan data, size_t index, bool active) const;
 
     /**
-     * @brief An indicator if the character is active
+     * @returns The slots active status
      */
     bool isActive(SaveSpan data, size_t slotIndex) const;
 
     /**
-     * @brief The name of the character
+     * @returns The name of the character
      */
     std::string getName(SaveSpan data) const;
 
     /**
-     * @brief A formatted timestamp of the total play time of the character
+     * @returns A formatted timestamp of the total play time of the character
      */
     std::string getTimePlayed(SaveSpan data) const;
 
     /**
-     * @brief The level of the character
+     * @returns The level of the character
      */
     u64 getLevel(SaveSpan data) const;
 
@@ -79,7 +79,7 @@ class Character {
     std::string name;       //!< The name of the character
     std::string timePlayed; //!< A timestamp of the characters play time
 
-    constexpr Character(SaveSpan data, size_t slotIndex) : slotIndex{slotIndex}, active{isActive(data, slotIndex)}, name{getName(data)}, level{getLevel(data)}, timePlayed{getTimePlayed(data)} {}
+    constexpr Character(SaveSpan data, size_t slotIndex) : slotIndex{slotIndex}, active{isActive(data, slotIndex)}, level{getLevel(data)}, name{getName(data)}, timePlayed{getTimePlayed(data)} {}
 
     /**
      * @brief Copy the currently active save slot into the given span
@@ -94,19 +94,15 @@ class Character {
      */
     void recalculateSlotChecksum(SaveSpan data) const;
 
-    /**
-     * @brief Get the index of the save slot
-     */
     size_t getSlotIndex() const;
 };
 
 /**
  * @brief Elden Ring save file parser and patcher
- * @param filename The path to the save file
  */
 class SaveFile {
   private:
-    constexpr static size_t SlotCount = 9; //!< The number of characters in the save file
+    constexpr static size_t SlotCount = 10; //!< The number of slots in each save file starting from 0
     std::vector<u8> saveDataContainer;
     SaveSpan saveData;
 
@@ -169,11 +165,24 @@ class SaveFile {
     void copySlot(SaveFile &source, size_t sourceSlotIndex, size_t targetSlotIndex);
 
     /**
-     * @brief Append a character from a source save file
+     * @brief Copy a save slot
+     * @param sourceSlotIndex The index of the save slot to copy from
+     * @param targetSlotIndex The index of the save slot to copy to
+     */
+    void copySlot(size_t sourceSlotIndex, size_t targetSlotIndex);
+
+    /**
+     * @brief Append a slot from a source save file
      * @param source The save file to copy from
-     * @param sourceSlotIndex The index of the source save slot to copy
+     * @param sourceSlotIndex The index of the source slot to copy
      */
     void appendSlot(SaveFile &source, size_t sourceSlotIndex);
+
+    /**
+     * @brief Append a slot to the save file
+     * @param sourceSlotIndex The index of the slot to copy
+     */
+    void appendSlot(size_t sourceSlotIndex);
 
     /**
      * @brief Get the Steam ID from the save header

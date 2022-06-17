@@ -47,7 +47,7 @@ void SaveFile::replaceSteamId(SaveSpan source, SaveSpan target) const {
         i = it - target.begin();
         const Section section{i, SteamIdSection.size};
         section.replace(target, targetSteamId);
-    };
+    }
 }
 
 void SaveFile::recalculateChecksums(SaveSpan data) const {
@@ -66,13 +66,17 @@ const std::vector<Character> SaveFile::parseSlots(SaveSpan data) const {
 }
 
 void SaveFile::copySlot(SaveFile &source, size_t sourceSlotIndex, size_t targetSlotIndex) {
-    if (targetSlotIndex > SlotCount || sourceSlotIndex > SlotCount || targetSlotIndex < 0 || sourceSlotIndex < 0)
+    if (targetSlotIndex > SlotCount || sourceSlotIndex > SlotCount)
         throw exception("Invalid slot index while copying character");
 
     source.slots[sourceSlotIndex].copy(source.saveData, saveData, targetSlotIndex);
     auto newSlots{parseSlots(saveData)};
     slots.swap(newSlots);
     replaceSteamId(source.saveData, saveData); // Each slot has the Steam ID hardcoded, optimally we would replace that in Character
+}
+
+void SaveFile::copySlot(size_t sourceSlotIndex, size_t targetSlotIndex) {
+    return copySlot(*this, sourceSlotIndex, targetSlotIndex);
 }
 
 void SaveFile::appendSlot(SaveFile &source, size_t sourceSlotIndex) {
@@ -88,6 +92,10 @@ void SaveFile::appendSlot(SaveFile &source, size_t sourceSlotIndex) {
     copySlot(source, sourceSlotIndex, firstAvailableSlot);
 }
 
+void SaveFile::appendSlot(size_t sourceSlotIndex) {
+    return appendSlot(*this, sourceSlotIndex);
+};
+
 void Character::copy(SaveSpan source, SaveSpan target, size_t targetSlotIndex) const {
     auto targetSlotSection{ParseSlot(SlotOffset, SlotSection.size, targetSlotIndex)};
     auto targetHeaderSection{ParseHeader(SlotHeaderOffset, SlotHeaderSection.size, targetSlotIndex)};
@@ -102,8 +110,8 @@ void Character::recalculateSlotChecksum(SaveSpan data) const {
     SlotChecksumSection.replace(data, hash);
 }
 
-void Character::setActive(SaveSpan data, size_t index, bool active) const {
-    ActiveSection.bytesFrom(data)[index] = active ? true : false;
+void Character::setActive(SaveSpan data, size_t index, bool value) const {
+    ActiveSection.bytesFrom(data)[index] = value ? true : false;
 }
 
 std::string Character::getTimePlayed(SaveSpan data) const {
@@ -118,8 +126,8 @@ u64 Character::getLevel(SaveSpan data) const {
     return LevelSection.castInteger<u8>(data);
 }
 
-bool Character::isActive(SaveSpan data, size_t slotIndex) const {
-    return static_cast<bool>(ActiveSection.bytesFrom(data)[slotIndex]);
+bool Character::isActive(SaveSpan data, size_t index) const {
+    return static_cast<bool>(ActiveSection.bytesFrom(data)[index]);
 }
 
 size_t Character::getSlotIndex() const {

@@ -3,20 +3,37 @@ project(erutils LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # For my LSP
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native")
+set(CMAKE_CXX_FLAGS_DEBUG "-g3")
 
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Debug)
+    set(CMAKE_BUILD_TYPE Release)
 endif()
-
 message("-- Detected build type: ${CMAKE_BUILD_TYPE}")
 
-# For my LSP
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    # Enable link-time optimizations
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+endif()
 
 add_executable(erutils
     src/main.cpp
     src/savefile.cpp
     src/util.cpp
+)
+
+target_compile_options(erutils PRIVATE
+    -Werror
+    -Wall
+    -Weverything
+    -Wno-weak-vtables
+    -Wno-padded
+    -Wno-shadow-field
+    -Wno-shadow-field-in-constructor
+    -Wno-sign-conversion
+    -Wno-c++98-compat
+    -Wno-c++98-compat-extra-semi
 )
 
 find_package(OpenSSL REQUIRED)

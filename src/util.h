@@ -18,7 +18,7 @@ using Md5Hash = std::array<u8, MD5_DIGEST_LENGTH>; //!< An MD5 hash
 
 /**
  * @brief Calculate the MD5 hash of a span of bytes
- * @param bytes The bytes to hash
+ * @param input The bytes to hash
  * @return The MD5 hash of the bytes
  */
 Md5Hash GenerateMd5(std::span<u8> input);
@@ -28,11 +28,11 @@ Md5Hash GenerateMd5(std::span<u8> input);
  * @param seconds The number of seconds
  * @return The human-readable timestamp
  */
-std::string SecondsToTimeStamp(const time_t input);
+std::string SecondsToTimeStamp(const time_t seconds);
 
 /**
  * @brief A convert a std::span to a hex string
- * @param span The span to convert
+ * @param data The span to convert
  * @return An uppercase hex string
  */
 std::string FormatHex(const std::span<u8> data);
@@ -67,7 +67,7 @@ struct Section {
     size_t length;
     size_t size;
 
-    constexpr Section(size_t address, size_t size) : address{address}, size{size}, length{address + size} {}
+    constexpr Section(size_t address, size_t size) : address{address}, length{address + size}, size{size} {}
 
     /**
      * @brief Get the range of bytes from the given data as an integer
@@ -90,7 +90,7 @@ struct Section {
      * @param newSection The new data to replace the old section with
      */
     constexpr void replace(std::span<u8> data, const std::span<u8> newSection) const {
-        if (address < 0 || address > data.size_bytes() || size > data.size_bytes())
+        if (address > data.size_bytes() || size > data.size_bytes())
             throw exception("Invalid offset range while replacing: [0x{:X}, 0x{:X}], size: 0x{:X}", address, length, data.size_bytes());
         if (newSection.size_bytes() != size)
             throw exception("New section size 0x{:X} does not match old section size 0x{:X}", newSection.size_bytes(), size);
@@ -104,7 +104,7 @@ struct Section {
      * @return A span containing the range of bytes from the given offset
      */
     constexpr std::span<u8> bytesFrom(const std::span<u8> data) const {
-        if (address < 0 || address > data.size_bytes() || size > data.size_bytes())
+        if (address > data.size_bytes() || size > data.size_bytes())
             throw exception("Invalid offset range: [{}, {}], size: {}", address, length, data.size_bytes());
 
         return data.subspan(address, length - address);
@@ -119,7 +119,7 @@ struct Section {
         auto section{bytesFrom(data)};
         auto chars{static_cast<u8 *>(section.data())};
         return {chars, chars + section.size_bytes()};
-    };
+    }
 };
 
 } // namespace savepatcher

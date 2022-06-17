@@ -5,7 +5,7 @@
 
 namespace savepatcher {
 
-void SaveFile::validateData(SaveSpan data, std::string target) {
+void SaveFile::validateData(SaveSpan data, std::string_view target) {
     if (HeaderBNDSection.charsFrom(data) != "BND" || data.size_bytes() != SaveFileSize)
         throw exception("{} is not a valid Elden Ring save file.", target);
 }
@@ -25,13 +25,12 @@ std::vector<u8> SaveFile::loadFile(std::string filename) {
     return data;
 }
 
-void SaveFile::write(SaveSpan data, std::string filename) {
-    std::ofstream file(filename, std::ios::out | std::ios::binary);
+void SaveFile::write(SaveSpan data, std::string_view filename) {
+    std::ofstream file(filename.data(), std::ios::out | std::ios::binary);
     if (!file.is_open())
         throw exception("Could not open file '{}'", filename);
 
     validateData(data, "Generated data");
-    replaceSteamId(sourceSave, data);
     recalculateChecksums(data);
     file.write(reinterpret_cast<const char *>(data.data()), data.size_bytes());
 }
@@ -54,11 +53,11 @@ void SaveFile::replaceSteamId(SaveSpan source, SaveSpan target) const {
 void SaveFile::recalculateChecksums(SaveSpan data) const {
     auto saveHeaderChecksum{GenerateMd5(SaveHeaderSection.bytesFrom(data))};
     SaveHeaderChecksumSection.replace(data, saveHeaderChecksum);
-    for (auto &character : sourceCharacters)
-        character.recalculateSlotChecksum(data);
+    for (auto &slot : slots)
+        slot.recalculateSlotChecksum(data);
 }
 
-std::vector<Character> SaveFile::parseSlots(SaveSpan data) const {
+const std::vector<Character> SaveFile::parseSlots(SaveSpan data) const {
     std::vector<Character> buffer;
     for (size_t i{}; i < SlotCount; i++)
         buffer.push_back(Character{data, i});
@@ -66,16 +65,19 @@ std::vector<Character> SaveFile::parseSlots(SaveSpan data) const {
     return buffer;
 }
 
-void SaveFile::copyCharacter(size_t sourceSlotIndex, size_t targetSlotIndex) const {
-    if (targetSlotIndex >= SlotCount || sourceSlotIndex >= SlotCount || targetSlotIndex < 0 || sourceSlotIndex < 0)
+void SaveFile::copySlot(SaveFile &source, size_t sourceSlotIndex, size_t targetSlotIndex) {
+    if (targetSlotIndex > SlotCount || sourceSlotIndex > SlotCount || targetSlotIndex < 0 || sourceSlotIndex < 0)
         throw exception("Invalid slot index while copying character");
 
-    sourceCharacters[sourceSlotIndex].copy(sourceSave, targetSave, targetSlotIndex);
+    source.slots[sourceSlotIndex].copy(source.saveData, saveData, targetSlotIndex);
+    auto newSlots{parseSlots(saveData)};
+    slots.swap(newSlots);
+    replaceSteamId(source.saveData, saveData); // Each slot has the Steam ID hardcoded, optimally we would replace that in Character
 }
 
-void SaveFile::appendSlot(size_t sourceSlotIndex) const {
+void SaveFile::appendSlot(SaveFile &source, size_t sourceSlotIndex) {
     size_t firstAvailableSlot{SlotCount + 1};
-    std::for_each(targetCharacters.rbegin(), targetCharacters.rend(), [&](const Character &slot) {
+    std::for_each(slots.rbegin(), slots.rend(), [&](const Character &slot) {
         if (!slot.active)
             firstAvailableSlot = slot.getSlotIndex();
     });
@@ -83,7 +85,7 @@ void SaveFile::appendSlot(size_t sourceSlotIndex) const {
     if (firstAvailableSlot == SlotCount + 1)
         throw exception("Could not find an unactive slot to append slot {} to", sourceSlotIndex);
 
-    copyCharacter(sourceSlotIndex, firstAvailableSlot);
+    copySlot(source, sourceSlotIndex, firstAvailableSlot);
 }
 
 void Character::copy(SaveSpan source, SaveSpan target, size_t targetSlotIndex) const {
@@ -110,7 +112,7 @@ std::string Character::getTimePlayed(SaveSpan data) const {
 
 std::string Character::getName(SaveSpan data) const {
     return NameSection.charsFrom(data);
-};
+}
 
 u64 Character::getLevel(SaveSpan data) const {
     return LevelSection.castInteger<u8>(data);

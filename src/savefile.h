@@ -106,11 +106,9 @@ class Character {
  */
 class SaveFile {
   private:
-    constexpr static size_t SlotCount = 10; //!< The number of characters in the save file
-    std::vector<u8> sourceSaveContainer;
-    std::vector<u8> targetSaveContainer;
-    SaveSpan sourceSave;
-    SaveSpan targetSave;
+    constexpr static size_t SlotCount = 9; //!< The number of characters in the save file
+    std::vector<u8> saveDataContainer;
+    SaveSpan saveData;
 
     constexpr static Section HeaderBNDSection{0x0, 0x3};                 //!< Contains the characters BND, used for validation
     constexpr static Section SaveHeaderSection{0x19003B0, 0x60000};      //!< Contains the save header
@@ -122,19 +120,19 @@ class SaveFile {
     /**
      * @brief Replace the Steam ID, recalculate checksums and write the resulting span to a file
      */
-    void write(SaveSpan data, std::string filename);
+    void write(SaveSpan data, std::string_view filename);
 
     /**
      * @brief Validate a file is an Elden Ring save file
      * @param data The data to validate
      * @param target The name of the file to log if validation fails
      */
-    void validateData(SaveSpan data, std::string target);
+    void validateData(SaveSpan data, std::string_view target);
 
     /**
      * @brief Load the characters into the characters vector
      */
-    std::vector<Character> parseSlots(SaveSpan data) const;
+    const std::vector<Character> parseSlots(SaveSpan data) const;
 
     /**
      * @brief Recalculate and replace the save header and slot checksums
@@ -149,33 +147,33 @@ class SaveFile {
     void replaceSteamId(SaveSpan source, SaveSpan target) const;
 
   public:
-    std::vector<Character> sourceCharacters; //!< The characters in the save file
-    std::vector<Character> targetCharacters; //!< The characters in the save file
+    std::vector<Character> slots; //!< The characters in the save file
 
-    constexpr SaveFile(std::string_view sourceFile, std::string_view targetFile) : sourceSaveContainer{loadFile(sourceFile.data())}, targetSaveContainer{loadFile(targetFile.data())}, sourceSave{sourceSaveContainer}, targetSave{targetSaveContainer}, sourceCharacters{parseSlots(sourceSave)}, targetCharacters{parseSlots(targetSave)} {
-        validateData(sourceSave, sourceFile.data());
-        validateData(targetSave, sourceFile.data());
+    constexpr SaveFile(std::string_view path) : saveDataContainer{loadFile(path.data())}, saveData{saveDataContainer}, slots{parseSlots(saveData)} {
+        validateData(saveData, path.data());
     }
 
     /**
      * @brief Write the patched save data to a file
      */
-    void write(std::string filename) {
-        write(targetSave, filename);
+    void write(std::string_view filename) {
+        write(saveData, filename);
     }
 
     /**
-     * @brief Copy a character between the source and target save files
+     * @brief Copy a character from a source save file
+     * @param source The save file to copy from
      * @param sourceSlotIndex The index of the source save slot to copy from
      * @param targetSlotIndex The index of the target save slot to copy to
      */
-    void copyCharacter(size_t sourceSlotIndex, size_t targetSlotIndex) const;
+    void copySlot(SaveFile &source, size_t sourceSlotIndex, size_t targetSlotIndex);
 
     /**
-     * @brief Append a character to the target save file
+     * @brief Append a character from a source save file
+     * @param source The save file to copy from
      * @param sourceSlotIndex The index of the source save slot to copy
      */
-    void appendSlot(size_t sourceSlotIndex) const;
+    void appendSlot(SaveFile &source, size_t sourceSlotIndex);
 
     /**
      * @brief Get the Steam ID from the save header
@@ -183,7 +181,7 @@ class SaveFile {
     u64 steamId(SaveSpan data) const;
 
     u64 steamId() const {
-        return steamId(sourceSave);
+        return steamId(saveData);
     }
 };
 

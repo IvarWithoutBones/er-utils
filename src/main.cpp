@@ -1,7 +1,9 @@
 #include "savefile.h"
 #include <fmt/format.h>
 
-const void printActiveCharacters(std::vector<savepatcher::Character> &characters) {
+using namespace savepatcher;
+
+const void printActiveCharacters(std::vector<Character> &characters) {
     for (auto character : characters)
         if (character.active)
             fmt::print("  slot {}: {}, level {}, played for {}\n", character.getSlotIndex(), character.name, character.level, character.timePlayed);
@@ -10,21 +12,23 @@ const void printActiveCharacters(std::vector<savepatcher::Character> &characters
 
 // TODO: Command line arguments
 int main(int argc, char **argv) {
-    auto outputFile = "./output.sl2";
-    auto savefile{savepatcher::SaveFile("../saves/ashley.sl2", "../saves/backup/ER0000.backup1")};
+    auto sourceSave{SaveFile("../saves/ashley.sl2")};
+    auto targetSave{SaveFile("../saves/backup/ER0000.backup1")};
+    constexpr std::string_view outputFile = "./output.sl2";
 
-    fmt::print("Source file with Steam ID: {}\n", savefile.steamId());
-    printActiveCharacters(savefile.sourceCharacters);
-    fmt::print("Target file with Steam ID: {}\n", savefile.steamId());
-    printActiveCharacters(savefile.targetCharacters);
+    fmt::print("Savefile to copy from with Steam ID: {}\n", targetSave.steamId());
+    printActiveCharacters(sourceSave.slots);
 
-    savefile.appendSlot(1);
-    savefile.write(outputFile);
+    fmt::print("Savefile to copy to with Steam ID: {}\n", sourceSave.steamId());
+    printActiveCharacters(targetSave.slots);
 
-    // TODO: specifying the second file shouldn't be required
-    auto newfile{savepatcher::SaveFile(outputFile, "../er0000.sl2")};
-    fmt::print("Generated file with Steam ID: {}\n", newfile.steamId());
-    printActiveCharacters(newfile.sourceCharacters);
+    targetSave.copySlot(targetSave, 0, 2);
+    targetSave.copySlot(sourceSave, 0, 0);
+    targetSave.appendSlot(sourceSave, 0);
 
+    fmt::print("Generated file:\n");
+    printActiveCharacters(targetSave.slots);
+
+    sourceSave.write(outputFile);
     fmt::print("Succesfully wrote output to file '{}'\n", outputFile);
 };

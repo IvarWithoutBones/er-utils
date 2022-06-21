@@ -81,7 +81,7 @@ void SaveFile::copySlot(size_t sourceSlotIndex, size_t targetSlotIndex) {
 
 void SaveFile::appendSlot(SaveFile &source, size_t sourceSlotIndex) {
     size_t firstAvailableSlot{SlotCount + 1};
-    std::for_each(slots.rbegin(), slots.rend(), [&](const Character &slot) {
+    std::for_each(slots.rbegin(), slots.rend(), [&firstAvailableSlot](const Character &slot) {
         if (!slot.active)
             firstAvailableSlot = slot.getSlotIndex();
     });

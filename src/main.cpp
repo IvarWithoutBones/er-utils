@@ -47,8 +47,12 @@ int main(int argc, char **argv) {
     fmt::print("Savefile to copy to with Steam ID: {}\n", sourceSave.steamId());
     printActiveCharacters(targetSave.slots);
 
-    const auto slotIndex{params.get<size_t>("--append")};
-    targetSave.appendSlot(sourceSave, slotIndex);
+    // targetSave.copySlot(targetSave, 5, 1);
+    // targetSave.setSlotActivity(1, false);
+    // targetSave.setSlotActivity(5, true);
+    // const auto slotIndex{params.get<size_t>("--append")};
+    // targetSave.appendSlot(sourceSave, 0);
+    targetSave.renameSlot(0, "test");
 
     fmt::print("Generated file:\n");
     printActiveCharacters(targetSave.slots);

@@ -48,29 +48,12 @@ class Character {
         return ParseSlot(address, size, slotIndex);
     }
 
-    /**
-     * @brief Set a slots active status
-     */
-    void setActive(SaveSpan data, size_t index, bool active) const;
-
-    /**
-     * @returns The slots active status
-     */
     bool isActive(SaveSpan data, size_t slotIndex) const;
 
-    /**
-     * @returns The name of the character
-     */
     std::string getName(SaveSpan data) const;
 
-    /**
-     * @returns A formatted timestamp of the total play time of the character
-     */
     std::string getTimePlayed(SaveSpan data) const;
 
-    /**
-     * @returns The level of the character
-     */
     u64 getLevel(SaveSpan data) const;
 
   public:
@@ -79,7 +62,9 @@ class Character {
     std::string name;       //!< The name of the character
     std::string timePlayed; //!< A timestamp of the characters play time
 
-    constexpr Character(SaveSpan data, size_t slotIndex) : slotIndex{slotIndex}, active{isActive(data, slotIndex)}, level{getLevel(data)}, name{getName(data)}, timePlayed{getTimePlayed(data)} {}
+    constexpr Character(SaveSpan data, size_t slotIndex) : slotIndex{slotIndex}, active{isActive(data, slotIndex)}, level{getLevel(data)}, name{getName(data)}, timePlayed{getTimePlayed(data)} {
+        // fmt::print("Character {}: {} {:X}\n", slotIndex, name, NameSection.address);
+    }
 
     /**
      * @brief Copy the currently active save slot into the given span
@@ -95,6 +80,10 @@ class Character {
     void recalculateSlotChecksum(SaveSpan data) const;
 
     size_t getSlotIndex() const;
+
+    void rename(SaveSpan data, std::string_view newName) const;
+
+    void setActive(SaveSpan data, size_t index, bool active) const;
 };
 
 /**
@@ -183,6 +172,10 @@ class SaveFile {
      * @param sourceSlotIndex The index of the slot to copy
      */
     void appendSlot(size_t sourceSlotIndex);
+
+    void renameSlot(size_t slotIndex, std::string_view name);
+
+    void setSlotActivity(size_t slotIndex, bool active);
 
     /**
      * @brief Get the Steam ID from the save header

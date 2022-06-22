@@ -38,20 +38,11 @@ void SaveFile::write(SaveSpan data, std::string_view filename) {
 void SaveFile::replaceSteamId(SaveSpan source, SaveSpan target) const {
     const auto sourceSteamId{SteamIdSection.bytesFrom(source)};
     const auto targetSteamId{SteamIdSection.bytesFrom(target)};
-
-    for (size_t i{}; i < target.size_bytes();) {
-        auto it{std::search(target.begin() + i + 1, target.end(), sourceSteamId.begin(), sourceSteamId.end())};
-        if (it == target.end())
-            break;
-
-        i = it - target.begin();
-        const Section section{i, SteamIdSection.size};
-        section.replace(target, targetSteamId);
-    }
+    util::replaceAll(target, sourceSteamId, targetSteamId);
 }
 
 void SaveFile::recalculateChecksums(SaveSpan data) const {
-    auto saveHeaderChecksum{GenerateMd5(SaveHeaderSection.bytesFrom(data))};
+    auto saveHeaderChecksum{util::GenerateMd5(SaveHeaderSection.bytesFrom(data))};
     SaveHeaderChecksumSection.replace(data, saveHeaderChecksum);
     for (auto &slot : slots)
         slot.recalculateSlotChecksum(data);
@@ -81,20 +72,37 @@ void SaveFile::copySlot(size_t sourceSlotIndex, size_t targetSlotIndex) {
 
 void SaveFile::appendSlot(SaveFile &source, size_t sourceSlotIndex) {
     size_t firstAvailableSlot{SlotCount + 1};
-    std::for_each(slots.rbegin(), slots.rend(), [&firstAvailableSlot](const Character &slot) {
-        if (!slot.active)
+    std::any_of(slots.begin(), slots.end(), [&firstAvailableSlot](const Character &slot) {
+        if (!slot.active) {
             firstAvailableSlot = slot.getSlotIndex();
+            return true;
+        }
+        return false;
     });
 
     if (firstAvailableSlot == SlotCount + 1)
         throw exception("Could not find an unactive slot to append slot {} to", sourceSlotIndex);
-
     copySlot(source, sourceSlotIndex, firstAvailableSlot);
 }
 
 void SaveFile::appendSlot(size_t sourceSlotIndex) {
     return appendSlot(*this, sourceSlotIndex);
 };
+
+void SaveFile::renameSlot(size_t slotIndex, std::string_view name) {
+    if (slotIndex > SlotCount)
+        throw exception("Invalid slot index while renaming character");
+
+    slots[slotIndex].rename(saveData, name);
+    auto newSlots{parseSlots(saveData)};
+    slots.swap(newSlots);
+}
+
+void SaveFile::setSlotActivity(size_t slotIndex, bool active) {
+    slots[slotIndex].setActive(saveData, slotIndex, active);
+    auto newSlots{parseSlots(saveData)};
+    slots.swap(newSlots);
+}
 
 void Character::copy(SaveSpan source, SaveSpan target, size_t targetSlotIndex) const {
     auto targetSlotSection{ParseSlot(SlotOffset, SlotSection.size, targetSlotIndex)};
@@ -106,7 +114,7 @@ void Character::copy(SaveSpan source, SaveSpan target, size_t targetSlotIndex) c
 }
 
 void Character::recalculateSlotChecksum(SaveSpan data) const {
-    auto hash{GenerateMd5(SlotSection.bytesFrom(data))};
+    auto hash{util::GenerateMd5(SlotSection.bytesFrom(data))};
     SlotChecksumSection.replace(data, hash);
 }
 
@@ -115,11 +123,16 @@ void Character::setActive(SaveSpan data, size_t index, bool value) const {
 }
 
 std::string Character::getTimePlayed(SaveSpan data) const {
-    return SecondsToTimeStamp(SecondsPlayedSection.castInteger<u32>(data));
+    return util::SecondsToTimeStamp(SecondsPlayedSection.castInteger<u32>(data));
 }
 
 std::string Character::getName(SaveSpan data) const {
     return NameSection.charsFrom(data);
+}
+
+void Character::rename(SaveSpan data, std::string_view newName) const {
+    // TODO: Theres some instances of the name being missed
+    NameSection.replace(data, newName);
 }
 
 u64 Character::getLevel(SaveSpan data) const {

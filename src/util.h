@@ -17,27 +17,6 @@ using SaveSpan = std::span<u8, SaveFileSize>;      //!< A span of the save file
 using Md5Hash = std::array<u8, MD5_DIGEST_LENGTH>; //!< An MD5 hash
 
 /**
- * @brief Calculate the MD5 hash of a span of bytes
- * @param input The bytes to hash
- * @return The MD5 hash of the bytes
- */
-Md5Hash GenerateMd5(std::span<u8> input);
-
-/**
- * @brief Convert a number of seconds to a human-readable timestamp
- * @param seconds The number of seconds
- * @return The human-readable timestamp
- */
-std::string SecondsToTimeStamp(const time_t seconds);
-
-/**
- * @brief A convert a std::span to a hex string
- * @param data The span to convert
- * @return An uppercase hex string
- */
-std::string FormatHex(const std::span<u8> data);
-
-/**
  * @brief A wrapper around std::runtime_error with {fmt} formatting
  */
 class exception : public std::runtime_error {
@@ -98,6 +77,16 @@ struct Section {
         std::copy(newSection.begin(), newSection.end(), data.begin() + address);
     }
 
+    void replace(std::span<u8> data, std::string_view newString) const {
+        if (newString.size() > size)
+            throw exception("String with length {:X} is bigger than section size {:X}", newString.size(), size);
+
+        unsigned char buffer[newString.size()];
+        std::memcpy(buffer, newString.data(), newString.size());
+        std::copy(buffer, buffer + newString.size(), data.begin() + address);
+        std::fill(data.begin() + address + newString.size(), data.begin() + address + size, 0); // 0 fill the rest of the section
+    }
+
     /**
      * @brief Get the range of bytes from the given data
      * @param data The data to return the range from
@@ -121,5 +110,32 @@ struct Section {
         return {chars, chars + section.size_bytes()};
     }
 };
+
+namespace util {
+
+/**
+ * @brief Calculate the MD5 hash of a span of bytes
+ * @param input The bytes to hash
+ * @return The MD5 hash of the bytes
+ */
+Md5Hash GenerateMd5(std::span<u8> input);
+
+/**
+ * @brief Convert a number of seconds to a human-readable timestamp
+ * @param seconds The number of seconds
+ * @return The human-readable timestamp
+ */
+std::string SecondsToTimeStamp(const time_t seconds);
+
+/**
+ * @brief A convert a std::span to a hex string
+ * @param data The span to convert
+ * @return An uppercase hex string
+ */
+std::string FormatHex(const std::span<u8> data);
+
+void replaceAll(std::span<u8> data, std::span<u8> find, std::span<u8> replace);
+
+} // namespace util
 
 } // namespace savepatcher

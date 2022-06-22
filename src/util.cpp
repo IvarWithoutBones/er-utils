@@ -2,7 +2,7 @@
 #include <chrono>
 #include <span>
 
-namespace savepatcher {
+namespace savepatcher::util {
 
 Md5Hash GenerateMd5(std::span<u8> input) {
     MD5_CTX sha256;
@@ -29,5 +29,17 @@ std::string SecondsToTimeStamp(const time_t input) {
 std::string FormatHex(const std::span<u8> data) {
     return fmt::format("{:X}", fmt::join(data, ""));
 };
+
+void replaceAll(std::span<u8> data, std::span<u8> find, std::span<u8> replace) {
+    for (size_t i{}; i < data.size_bytes();) {
+        auto it{std::search(data.begin() + i + 1, data.end(), find.begin(), find.end())};
+        if (it == data.end())
+            break;
+
+        i = it - data.begin();
+        fmt::print("Found {} at {:X}\n", util::FormatHex(find), i);
+        std::copy(replace.begin(), replace.end(), data.begin() + i);
+    }
+}
 
 } // namespace savepatcher

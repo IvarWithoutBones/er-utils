@@ -24,7 +24,6 @@ add_executable(erutils
 )
 
 target_compile_options(erutils PRIVATE
-    -Werror
     -Wall
     -Weverything
     -Wno-weak-vtables

@@ -12,34 +12,38 @@ static void printActiveCharacters(std::vector<Character> &characters) {
     fmt::print("\n");
 }
 
-int main(int argc, char **argv) {
-    ArgumentParser params(argc, argv);
+static void printUsage(const ArgumentParser &parser) {
+    const auto [programName, briefUsage, fullUsage] = parser.getUsage();
+    fmt::print("Usage: {} {}\n{}\n", programName, briefUsage, fullUsage);
+}
 
-    params.add<bool>({{"--help", "(optional) Show this help message"}});
-    params.add<std::string_view>({ // TODO: should be std::filesystem::path instead
-        {"--output", "(optional) The path to the output file to write to"},
+int main(int argc, char **argv) {
+    ArgumentParser arguments(argc, argv);
+    arguments.add<std::filesystem::path>({
         {"--source", "<save file>", "The path to the save file to copy from"},
         {"--target", "<save file>", "The path to the save file to copy to"},
+        {"--output", "(optional) The path to the output file to write to"},
     });
 
-    params.add<size_t>({
+    arguments.add<int>({
         {"--append", "<slot number>", "Append character with the given index to a save file"},
     });
 
-    if (params.get<bool>("--help")) {
-        params.printUsage();
+    arguments.add<bool>({{"--help", "(optional) Show this help message"}});
+    if (arguments.find<bool>("--help").value) {
+        printUsage(arguments);
         exit(0);
     }
 
-    const auto sourcePath{params.get<std::string_view>("--source")};
-    const auto targetPath{params.get<std::string_view>("--target")};
-    if (sourcePath.empty() || targetPath.empty()) { // TODO: add support for required arguments
-        params.printUsage();
+    const auto sourcePath{arguments.find<std::filesystem::path>("--source")};
+    const auto targetPath{arguments.find<std::filesystem::path>("--target")};
+    if (!sourcePath.set || !targetPath.set) { // TODO: add support for required arguments
+        printUsage(arguments);
         exit(1);
     }
 
-    auto sourceSave{SaveFile(sourcePath)};
-    auto targetSave{SaveFile(targetPath)};
+    auto sourceSave{SaveFile(sourcePath.value.generic_string())};
+    auto targetSave{SaveFile(targetPath.value.generic_string())};
 
     fmt::print("Savefile to copy from with Steam ID: {}\n", targetSave.steamId());
     printActiveCharacters(sourceSave.slots);
@@ -47,19 +51,16 @@ int main(int argc, char **argv) {
     fmt::print("Savefile to copy to with Steam ID: {}\n", sourceSave.steamId());
     printActiveCharacters(targetSave.slots);
 
-    // targetSave.copySlot(targetSave, 5, 1);
-    // targetSave.setSlotActivity(1, false);
-    // targetSave.setSlotActivity(5, true);
-    // const auto slotIndex{params.get<size_t>("--append")};
-    // targetSave.appendSlot(sourceSave, 0);
-    targetSave.renameSlot(0, "test");
+    auto appendArgument{arguments.find<int>("--append")};
+    if (appendArgument.set)
+        targetSave.appendSlot(sourceSave, appendArgument.value);
 
     fmt::print("Generated file:\n");
     printActiveCharacters(targetSave.slots);
 
-    const auto outputPath{params.get<std::string_view>("--output")};
-    if (!outputPath.empty()) {
-        sourceSave.write(outputPath);
-        fmt::print("Succesfully wrote output to file '{}'\n", outputPath);
+    const auto outputPath{arguments.find<std::string_view>("--output")};
+    if (outputPath.set) {
+        sourceSave.write(outputPath.value);
+        fmt::print("Succesfully wrote output to file '{}'\n", outputPath.value);
     }
 }

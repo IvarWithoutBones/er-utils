@@ -20,18 +20,28 @@ static void printUsage(const ArgumentParser &parser) {
 int main(int argc, char **argv) {
     ArgumentParser arguments(argc, argv);
     arguments.add<std::string_view>({
-        {"--from", "<save file>", "(required) The path to the save file to copy from"},
-        {"--to", "<save file>", "(required) The path to the save file to copy to"},
+        {"--from", "<save file>", "The path to the save file to copy from"},
+        {"--to", "<save file>", "The path to the save file to copy to"},
+        {"--read", "<save file>", "Print the slots of a save file"},
         {"--output", "The path to the output file to write to"},
     });
 
     arguments.add<int>({
-        {"--append", "<slot number>", "Append character with the given index to a save file"},
+        {"--append", "<slot number>", "Append character from the given slot to a save file. Both '--from' and '--to' need to be set"},
     });
 
     arguments.add<bool>({{"--help", "Show this help message"}});
-    if (arguments.find<bool>("--help").value) {
+    if (arguments.find<bool>("--help").set) {
         printUsage(arguments);
+        exit(0);
+    }
+
+    const auto read{arguments.find<std::string_view>("--read")};
+    if (read.set) {
+        const auto path{std::filesystem::path{read.value}};
+        auto saveFile{SaveFile{path}};
+        fmt::print("Savefile '{}':\n", path.generic_string());
+        printActiveCharacters(saveFile.slots);
         exit(0);
     }
 
@@ -56,7 +66,7 @@ int main(int argc, char **argv) {
         if (sourceSave.slots[appendArgument.value].active)
             targetSave.appendSlot(sourceSave, appendArgument.value);
         else
-            throw std::runtime_error(fmt::format("Attempting to append inactive character {}", appendArgument.value));
+            throw std::runtime_error(fmt::format("Attempting to append slot character {}", appendArgument.value));
     }
 
     fmt::print("Generated file:\n");

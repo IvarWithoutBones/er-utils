@@ -4,7 +4,7 @@
 
 namespace savepatcher::util {
 
-Md5Hash GenerateMd5(std::span<u8> input) {
+const Md5Hash GenerateMd5(std::span<u8> input) {
     MD5_CTX sha256;
     Md5Hash hash{};
 
@@ -15,31 +15,33 @@ Md5Hash GenerateMd5(std::span<u8> input) {
     return hash;
 }
 
-std::string SecondsToTimeStamp(const time_t input) {
-    constexpr static auto MinutesInHour = 60;
-    constexpr static auto SecondsInHour = MinutesInHour * 60;
-
-    auto hours{std::chrono::duration_cast<std::chrono::hours>(std::chrono::seconds(input))};
-    auto minutes{std::chrono::duration_cast<std::chrono::minutes>(std::chrono::seconds(input - (hours.count() * SecondsInHour)))};
-    auto seconds{std::chrono::duration_cast<std::chrono::seconds>(std::chrono::seconds(input - (hours.count() * SecondsInHour) - (minutes.count() * MinutesInHour)))};
+const std::string SecondsToTimeStamp(const time_t input) {
+    constexpr static auto SecondsInHour{60};
+    constexpr static auto MinutesInHour{SecondsInHour * 60};
+    const auto hours{std::chrono::duration_cast<std::chrono::hours>(std::chrono::seconds(input))};
+    const auto minutes{std::chrono::duration_cast<std::chrono::minutes>(std::chrono::seconds(input - (hours.count() * MinutesInHour)))};
+    const auto seconds{std::chrono::duration_cast<std::chrono::seconds>(std::chrono::seconds(input - (hours.count() * MinutesInHour) - (minutes.count() * SecondsInHour)))};
 
     return fmt::format("{:02}:{:02}:{:02}", hours.count(), minutes.count(), seconds.count());
 }
 
-std::string FormatHex(const std::span<u8> data) {
-    return fmt::format("{:X}", fmt::join(data, ""));
-};
-
 void replaceAll(std::span<u8> data, std::span<u8> find, std::span<u8> replace) {
     for (size_t i{}; i < data.size_bytes();) {
-        auto it{std::search(data.begin() + i + 1, data.end(), find.begin(), find.end())};
+        auto it{std::search(data.begin() + i, data.end(), find.begin(), find.end())};
         if (it == data.end())
             break;
 
         i = it - data.begin();
-        fmt::print("Found {} at {:X}\n", util::FormatHex(find), i);
         std::copy(replace.begin(), replace.end(), data.begin() + i);
     }
+}
+
+const std::string FormatHex(const std::span<u8> data) {
+    return fmt::format("{:X}", fmt::join(data, ""));
+}
+
+const std::string toAbsolutePath(std::filesystem::path path) {
+    return std::filesystem::absolute(path).generic_string();
 }
 
 } // namespace savepatcher

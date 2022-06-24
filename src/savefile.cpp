@@ -5,7 +5,7 @@
 
 namespace savepatcher {
 
-void SaveFile::validateData(SaveSpan data, std::string_view target) {
+void SaveFile::validateData(SaveSpan data, std::string_view target) const {
     if (HeaderBNDSection.charsFrom(data) != "BND" || data.size_bytes() != SaveFileSize)
         throw exception("{} is not a valid Elden Ring save file.", target);
 }
@@ -14,38 +14,29 @@ u64 SaveFile::steamId(SaveSpan data) const {
     return SteamIdSection.castInteger<u64>(data);
 }
 
-std::vector<u8> SaveFile::loadFile(std::string filename) {
-    std::ifstream file(filename, std::ios::in | std::ios::binary);
-    std::vector<u8> data;
+std::vector<u8> SaveFile::loadFile(std::filesystem::path path) const {
+    std::ifstream file(path, std::ios::in | std::ios::binary);
+    std::vector<u8> buffer;
+    if (!std::filesystem::exists(path))
+        throw exception("Path {} does not exist.", util::toAbsolutePath(path));
     if (!file.is_open())
-        throw exception("Could not open file '{}'", filename);
+        throw exception("Could not open file '{}'", util::toAbsolutePath(path));
 
-    data = {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+    buffer = {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
     file.close();
-    return data;
+    return buffer;
 }
 
-void SaveFile::write(SaveSpan data, std::string_view filename) {
-    std::ofstream file(filename.data(), std::ios::out | std::ios::binary);
+void SaveFile::write(SaveSpan data, std::filesystem::path path) const {
+    std::ofstream file(path, std::ios::out | std::ios::binary);
+    if (!std::filesystem::exists(path))
+        throw exception("Path {} does not exist.", util::toAbsolutePath(path));
     if (!file.is_open())
-        throw exception("Could not open file '{}'", filename);
+        throw exception("Could not open file '{}'", util::toAbsolutePath(path));
 
     validateData(data, "Generated data");
     recalculateChecksums(data);
     file.write(reinterpret_cast<const char *>(data.data()), data.size_bytes());
-}
-
-void SaveFile::replaceSteamId(SaveSpan source, SaveSpan target) const {
-    const auto sourceSteamId{SteamIdSection.bytesFrom(source)};
-    const auto targetSteamId{SteamIdSection.bytesFrom(target)};
-    util::replaceAll(target, sourceSteamId, targetSteamId);
-}
-
-void SaveFile::recalculateChecksums(SaveSpan data) const {
-    auto saveHeaderChecksum{util::GenerateMd5(SaveHeaderSection.bytesFrom(data))};
-    SaveHeaderChecksumSection.replace(data, saveHeaderChecksum);
-    for (auto &slot : slots)
-        slot.recalculateSlotChecksum(data);
 }
 
 const std::vector<Character> SaveFile::parseSlots(SaveSpan data) const {
@@ -56,14 +47,18 @@ const std::vector<Character> SaveFile::parseSlots(SaveSpan data) const {
     return buffer;
 }
 
+void SaveFile::refreshSlots() {
+    auto newSlots{parseSlots(saveData)};
+    slots.swap(newSlots);
+}
+
 void SaveFile::copySlot(SaveFile &source, size_t sourceSlotIndex, size_t targetSlotIndex) {
     if (targetSlotIndex > SlotCount || sourceSlotIndex > SlotCount)
         throw exception("Invalid slot index while copying character");
 
     source.slots[sourceSlotIndex].copy(source.saveData, saveData, targetSlotIndex);
-    auto newSlots{parseSlots(saveData)};
-    slots.swap(newSlots);
-    replaceSteamId(source.saveData, saveData); // Each slot has the Steam ID hardcoded, optimally we would replace that in Character
+    replaceSteamId(source.saveData); // Each slot has the Steam ID hardcoded, optimally we would replace that in Character
+    refreshSlots();
 }
 
 void SaveFile::copySlot(size_t sourceSlotIndex, size_t targetSlotIndex) {
@@ -72,13 +67,11 @@ void SaveFile::copySlot(size_t sourceSlotIndex, size_t targetSlotIndex) {
 
 void SaveFile::appendSlot(SaveFile &source, size_t sourceSlotIndex) {
     size_t firstAvailableSlot{SlotCount + 1};
-    std::any_of(slots.begin(), slots.end(), [&firstAvailableSlot](const Character &slot) {
+    for (auto &slot : slots)
         if (!slot.active) {
-            firstAvailableSlot = slot.getSlotIndex();
-            return true;
+            firstAvailableSlot = slot.slotIndex;
+            break;
         }
-        return false;
-    });
 
     if (firstAvailableSlot == SlotCount + 1)
         throw exception("Could not find an unactive slot to append slot {} to", sourceSlotIndex);
@@ -94,14 +87,25 @@ void SaveFile::renameSlot(size_t slotIndex, std::string_view name) {
         throw exception("Invalid slot index while renaming character");
 
     slots[slotIndex].rename(saveData, name);
-    auto newSlots{parseSlots(saveData)};
-    slots.swap(newSlots);
+    refreshSlots();
+}
+
+void SaveFile::replaceSteamId(SaveSpan source) const {
+    const auto sourceSteamId{SteamIdSection.bytesFrom(source)};
+    const auto targetSteamId{SteamIdSection.bytesFrom(saveData)};
+    util::replaceAll(saveData, sourceSteamId, targetSteamId);
+}
+
+void SaveFile::recalculateChecksums(SaveSpan data) const {
+    auto saveHeaderChecksum{util::GenerateMd5(SaveHeaderSection.bytesFrom(data))};
+    SaveHeaderChecksumSection.replace(data, saveHeaderChecksum);
+    for (auto &slot : slots)
+        slot.recalculateSlotChecksum(data);
 }
 
 void SaveFile::setSlotActivity(size_t slotIndex, bool active) {
     slots[slotIndex].setActive(saveData, slotIndex, active);
-    auto newSlots{parseSlots(saveData)};
-    slots.swap(newSlots);
+    refreshSlots();
 }
 
 void Character::copy(SaveSpan source, SaveSpan target, size_t targetSlotIndex) const {
@@ -119,7 +123,7 @@ void Character::recalculateSlotChecksum(SaveSpan data) const {
 }
 
 void Character::setActive(SaveSpan data, size_t index, bool value) const {
-    ActiveSection.bytesFrom(data)[index] = value ? true : false;
+    ActiveSection.bytesFrom(data)[index] = value;
 }
 
 std::string Character::getTimePlayed(SaveSpan data) const {
@@ -131,7 +135,8 @@ std::string Character::getName(SaveSpan data) const {
 }
 
 void Character::rename(SaveSpan data, std::string_view newName) const {
-    // TODO: Theres some instances of the name being missed
+    // TODO: Theres some instances of the name being missed, presumably in the save header. The easiest fix would be just
+    // replacing all occurances of the old name with the new name, but that would break if two characters had the same name.
     NameSection.replace(data, newName);
 }
 

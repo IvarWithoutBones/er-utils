@@ -1,4 +1,5 @@
 #include "util.h"
+#include <filesystem>
 #include <span>
 #include <string>
 #include <vector>
@@ -62,9 +63,7 @@ class Character {
     std::string name;       //!< The name of the character
     std::string timePlayed; //!< A timestamp of the characters play time
 
-    constexpr Character(SaveSpan data, size_t slotIndex) : slotIndex{slotIndex}, active{isActive(data, slotIndex)}, level{getLevel(data)}, name{getName(data)}, timePlayed{getTimePlayed(data)} {
-        // fmt::print("Character {}: {} {:X}\n", slotIndex, name, NameSection.address);
-    }
+    constexpr Character(SaveSpan data, size_t slotIndex) : slotIndex{slotIndex}, active{isActive(data, slotIndex)}, level{getLevel(data)}, name{getName(data)}, timePlayed{getTimePlayed(data)} {}
 
     /**
      * @brief Copy the currently active save slot into the given span
@@ -91,7 +90,7 @@ class Character {
  */
 class SaveFile {
   private:
-    constexpr static size_t SlotCount = 10; //!< The number of slots in each save file starting from 0
+    constexpr static size_t SlotCount{10}; //!< The number of slots in each save file starting from 0
     std::vector<u8> saveDataContainer;
     SaveSpan saveData;
 
@@ -100,24 +99,18 @@ class SaveFile {
     constexpr static Section SaveHeaderChecksumSection{0x19003A0, 0x10}; //!< Contains the MD5 sum of the save header
     constexpr static Section SteamIdSection{0x19003B4, 0x8};             //!< Contains one instance the Steam ID
 
-    std::vector<u8> loadFile(std::string filename);
+    std::vector<u8> loadFile(std::filesystem::path path) const;
 
     /**
      * @brief Replace the Steam ID, recalculate checksums and write the resulting span to a file
      */
-    void write(SaveSpan data, std::string_view filename);
+    void write(SaveSpan data, std::filesystem::path path) const;
 
     /**
      * @brief Validate a file is an Elden Ring save file
-     * @param data The data to validate
      * @param target The name of the file to log if validation fails
      */
-    void validateData(SaveSpan data, std::string_view target);
-
-    /**
-     * @brief Load the characters into the characters vector
-     */
-    const std::vector<Character> parseSlots(SaveSpan data) const;
+    void validateData(SaveSpan data, std::string_view target) const;
 
     /**
      * @brief Recalculate and replace the save header and slot checksums
@@ -126,16 +119,19 @@ class SaveFile {
 
     /**
      * @brief Replace the Steam ID inside the target save file
-     * @param source The data containing the old Steam ID to replace
-     * @param target The data containing the new Steam ID to replace with. The new data gets written to this
+     * @param source The data containing the Steam ID to replace
      */
-    void replaceSteamId(SaveSpan source, SaveSpan target) const;
+    void replaceSteamId(SaveSpan source) const;
+
+    const std::vector<Character> parseSlots(SaveSpan data) const;
+
+    void refreshSlots();
 
   public:
     std::vector<Character> slots; //!< The characters in the save file
 
-    constexpr SaveFile(std::string_view path) : saveDataContainer{loadFile(path.data())}, saveData{saveDataContainer}, slots{parseSlots(saveData)} {
-        validateData(saveData, path.data());
+    SaveFile(std::filesystem::path path) : saveDataContainer{loadFile(path)}, saveData{saveDataContainer}, slots{parseSlots(saveData)} {
+        validateData(saveData, util::toAbsolutePath(path));
     }
 
     /**
@@ -153,11 +149,6 @@ class SaveFile {
      */
     void copySlot(SaveFile &source, size_t sourceSlotIndex, size_t targetSlotIndex);
 
-    /**
-     * @brief Copy a save slot
-     * @param sourceSlotIndex The index of the save slot to copy from
-     * @param targetSlotIndex The index of the save slot to copy to
-     */
     void copySlot(size_t sourceSlotIndex, size_t targetSlotIndex);
 
     /**
@@ -167,14 +158,16 @@ class SaveFile {
      */
     void appendSlot(SaveFile &source, size_t sourceSlotIndex);
 
-    /**
-     * @brief Append a slot to the save file
-     * @param sourceSlotIndex The index of the slot to copy
-     */
     void appendSlot(size_t sourceSlotIndex);
 
-    void renameSlot(size_t slotIndex, std::string_view name);
+    /**
+     * @brief Rename a character in the given slot
+     */
+    void renameSlot(size_t slotIndex, std::string_view newName);
 
+    /**
+     * @brief Set a slots active state
+     */
     void setSlotActivity(size_t slotIndex, bool active);
 
     /**

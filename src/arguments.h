@@ -1,9 +1,8 @@
 #include "util.h"
+#include <filesystem>
 #include <fmt/core.h>
-#include <set>
 #include <string>
 #include <vector>
-#include <filesystem>
 
 namespace savepatcher::arguments {
 
@@ -75,10 +74,7 @@ class ArgumentParser {
     }
 
     void parse(Argument<std::filesystem::path> &arg) const {
-        auto path{std::filesystem::path(getNextArgument(arg.name))};
-        if (!std::filesystem::exists(path))
-            throw exception("Invalid argument for '{}': path '{}' does not exist!", arg.name, path.generic_string());
-        arg.value = path;
+        arg.value = std::filesystem::path(getNextArgument(arg.name));
     }
 
   public:

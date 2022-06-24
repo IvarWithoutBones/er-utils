@@ -19,48 +19,53 @@ static void printUsage(const ArgumentParser &parser) {
 
 int main(int argc, char **argv) {
     ArgumentParser arguments(argc, argv);
-    arguments.add<std::filesystem::path>({
-        {"--source", "<save file>", "The path to the save file to copy from"},
-        {"--target", "<save file>", "The path to the save file to copy to"},
-        {"--output", "(optional) The path to the output file to write to"},
+    arguments.add<std::string_view>({
+        {"--from", "<save file>", "(required) The path to the save file to copy from"},
+        {"--to", "<save file>", "(required) The path to the save file to copy to"},
+        {"--output", "The path to the output file to write to"},
     });
 
     arguments.add<int>({
         {"--append", "<slot number>", "Append character with the given index to a save file"},
     });
 
-    arguments.add<bool>({{"--help", "(optional) Show this help message"}});
+    arguments.add<bool>({{"--help", "Show this help message"}});
     if (arguments.find<bool>("--help").value) {
         printUsage(arguments);
         exit(0);
     }
 
-    const auto sourcePath{arguments.find<std::filesystem::path>("--source")};
-    const auto targetPath{arguments.find<std::filesystem::path>("--target")};
+    const auto sourcePath{arguments.find<std::string_view>("--from")};
+    const auto targetPath{arguments.find<std::string_view>("--to")};
     if (!sourcePath.set || !targetPath.set) { // TODO: add support for required arguments
         printUsage(arguments);
         exit(1);
     }
 
-    auto sourceSave{SaveFile(sourcePath.value.generic_string())};
-    auto targetSave{SaveFile(targetPath.value.generic_string())};
+    auto sourceSave{SaveFile(std::filesystem::path{sourcePath.value})};
+    auto targetSave{SaveFile(std::filesystem::path{targetPath.value})};
 
-    fmt::print("Savefile to copy from with Steam ID: {}\n", targetSave.steamId());
+    fmt::print("Savefile to copy from:\n");
     printActiveCharacters(sourceSave.slots);
 
-    fmt::print("Savefile to copy to with Steam ID: {}\n", sourceSave.steamId());
+    fmt::print("Savefile to copy to:\n");
     printActiveCharacters(targetSave.slots);
 
     auto appendArgument{arguments.find<int>("--append")};
-    if (appendArgument.set)
-        targetSave.appendSlot(sourceSave, appendArgument.value);
+    if (appendArgument.set) {
+        if (sourceSave.slots[appendArgument.value].active)
+            targetSave.appendSlot(sourceSave, appendArgument.value);
+        else
+            throw std::runtime_error(fmt::format("Attempting to append inactive character {}", appendArgument.value));
+    }
 
     fmt::print("Generated file:\n");
     printActiveCharacters(targetSave.slots);
 
-    const auto outputPath{arguments.find<std::string_view>("--output")};
-    if (outputPath.set) {
-        sourceSave.write(outputPath.value);
-        fmt::print("Succesfully wrote output to file '{}'\n", outputPath.value);
+    const auto outputArgument{arguments.find<std::string_view>("--output")};
+    if (outputArgument.set) {
+        const auto path{std::filesystem::path{outputArgument.value}};
+        targetSave.write(path.generic_string());
+        fmt::print("Succesfully wrote output to file '{}'\n", util::toAbsolutePath(path));
     }
 }

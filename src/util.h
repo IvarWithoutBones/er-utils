@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <fmt/format.h>
 #include <openssl/md5.h>
 #include <span>
@@ -50,7 +51,6 @@ struct Section {
 
     /**
      * @brief Get the range of bytes from the given data as an integer
-     * @param data The data to return the range from
      * @return A number containing the range of bytes from the given offset. This can be one of u8, u16, u32 or u64
      */
     template <typename T> constexpr T castInteger(const std::span<u8> data) const {
@@ -66,7 +66,7 @@ struct Section {
     /**
      * @brief Replace a section inside of the save file
      * @param data The data to modify
-     * @param newSection The new data to replace the old section with
+     * @param newSection The data to replace the section with
      */
     constexpr void replace(std::span<u8> data, const std::span<u8> newSection) const {
         if (address > data.size_bytes() || size > data.size_bytes())
@@ -77,20 +77,17 @@ struct Section {
         std::copy(newSection.begin(), newSection.end(), data.begin() + address);
     }
 
-    void replace(std::span<u8> data, std::string_view newString) const {
+    constexpr void replace(std::span<u8> data, std::string_view newString) const {
         if (newString.size() > size)
             throw exception("String with length {:X} is bigger than section size {:X}", newString.size(), size);
+        else if (newString.size() < size)
+            std::fill(data.begin() + address + newString.size(), data.begin() + address + size, 0); // 0 fill the remainder of the section
 
-        unsigned char buffer[newString.size()];
-        std::memcpy(buffer, newString.data(), newString.size());
-        std::copy(buffer, buffer + newString.size(), data.begin() + address);
-        std::fill(data.begin() + address + newString.size(), data.begin() + address + size, 0); // 0 fill the rest of the section
+        std::copy(newString.data(), newString.data() + newString.size(), data.begin() + address);
     }
 
     /**
-     * @brief Get the range of bytes from the given data
-     * @param data The data to return the range from
-     * @return A span containing the range of bytes from the given offset
+     * @brief Get the range of bytes from the given data at the given offset
      */
     constexpr std::span<u8> bytesFrom(const std::span<u8> data) const {
         if (address > data.size_bytes() || size > data.size_bytes())
@@ -101,13 +98,9 @@ struct Section {
 
     /**
      * @brief Get the range of bytes from the given data as a string
-     * @param data The data to return the range from
-     * @return A string containing the range of bytes from the given offset
      */
     std::string charsFrom(const std::span<u8> data) const {
-        auto section{bytesFrom(data)};
-        auto chars{static_cast<u8 *>(section.data())};
-        return {chars, chars + section.size_bytes()};
+        return {reinterpret_cast<const char *>(bytesFrom(data).data()), size};
     }
 };
 
@@ -115,25 +108,27 @@ namespace util {
 
 /**
  * @brief Calculate the MD5 hash of a span of bytes
- * @param input The bytes to hash
- * @return The MD5 hash of the bytes
  */
-Md5Hash GenerateMd5(std::span<u8> input);
+const Md5Hash GenerateMd5(std::span<u8> input);
 
 /**
  * @brief Convert a number of seconds to a human-readable timestamp
- * @param seconds The number of seconds
- * @return The human-readable timestamp
  */
-std::string SecondsToTimeStamp(const time_t seconds);
+const std::string SecondsToTimeStamp(const time_t seconds);
 
 /**
- * @brief A convert a std::span to a hex string
- * @param data The span to convert
- * @return An uppercase hex string
+ * @brief Get an std::filesystem::path's absolute path
  */
-std::string FormatHex(const std::span<u8> data);
+const std::string toAbsolutePath(std::filesystem::path path);
 
+/**
+ * @brief A convert a std::span to an uppercase hex string
+ */
+const std::string FormatHex(const std::span<u8> data);
+
+/**
+ * @brief Replace all occurances of a span inside of another span
+ */
 void replaceAll(std::span<u8> data, std::span<u8> find, std::span<u8> replace);
 
 } // namespace util

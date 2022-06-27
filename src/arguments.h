@@ -1,12 +1,16 @@
 #include "util.h"
 #include <filesystem>
 #include <fmt/core.h>
+#include <ranges>
 #include <string>
 #include <vector>
 
-namespace savepatcher::arguments {
+namespace savepatcher::CommandLineArguments {
 
 struct ArgumentBase {
+    const std::string_view name{};
+    bool set{false};
+
     constexpr virtual ~ArgumentBase() = default;
     constexpr ArgumentBase() = default;
     constexpr ArgumentBase(const ArgumentBase &) = default;
@@ -38,6 +42,27 @@ class ArgumentParser {
     std::string_view programName;                                 //!< The name of the program
     std::string briefUsageDescription;                            //!< A one line description of the arguments
     std::string usageDescription;                                 //!< A full description of all arguments
+
+    /**
+     * @brief Append an argument to the argument container, and parse it if it is set
+     */
+    template <typename T> constexpr void init(Argument<T> &arg) {
+        if (!arg.briefDescription.empty())
+            briefUsageDescription += fmt::format("{} {} ", arg.name, arg.briefDescription);
+        if (!arg.description.empty()) {
+            if (!arg.briefDescription.empty())
+                usageDescription += fmt::format("  {} {}: {}\n", arg.name, arg.briefDescription, arg.description);
+            else
+                usageDescription += fmt::format("  {}: {}\n", arg.name, arg.description);
+        }
+
+        if (isArgued(arg.name)) {
+            parse(arg);
+            arg.set = true;
+        }
+
+        argumentContainer.emplace_back(std::make_shared<Argument<T>>(arg));
+    }
 
     /**
      * @brief Check if an argument is set
@@ -80,25 +105,21 @@ class ArgumentParser {
   public:
     ArgumentParser(int argc, char **argv) : rawArguments{argv, argv + argc}, programName{argv[0]} {}
 
-    /**
-     * @brief Append an argument to the argument container, and parse it if it is set
-     */
-    template <typename T> constexpr void add(Argument<T> &arg) {
-        if (!arg.description.empty())
-            usageDescription += fmt::format("  {}: {}\n", arg.name, arg.description);
-        if (!arg.briefDescription.empty())
-            briefUsageDescription += fmt::format("{} {} ", arg.name, arg.briefDescription);
-        if (isArgued(arg.name)) {
-            parse(arg);
-            arg.set = true;
-        }
-
-        argumentContainer.emplace_back(std::make_shared<Argument<T>>(arg));
-    }
-
     template <typename T> constexpr void add(const std::initializer_list<Argument<T>> arguments) {
         for (auto arg : arguments)
-            add(arg);
+            init(arg);
+    }
+
+    template <typename T> constexpr Argument<T> add(Argument<T> arg) {
+        init(arg);
+        return arg;
+    }
+
+    /**
+     * @brief Get the brief and full description of all arguments
+     */
+    constexpr std::tuple<std::string_view, std::string_view, std::string_view> getUsage() const {
+        return std::make_tuple(programName.data(), briefUsageDescription.data(), usageDescription.data());
     }
 
     /**
@@ -111,13 +132,6 @@ class ArgumentParser {
 
         return *std::static_pointer_cast<Argument<T>>(*itr);
     }
-
-    /**
-     * @brief Get the brief and full description of all arguments
-     */
-    constexpr std::tuple<std::string_view, std::string_view, std::string_view> getUsage() const {
-        return std::make_tuple(programName.data(), briefUsageDescription.data(), usageDescription.data());
-    }
 };
 
-} // namespace savepatcher::arguments
+} // namespace savepatcher::CommandLineArguments

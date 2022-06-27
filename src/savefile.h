@@ -137,8 +137,8 @@ class SaveFile {
     /**
      * @brief Write the patched save data to a file
      */
-    void write(std::string_view filename) {
-        write(saveData, filename);
+    void write(std::filesystem::path path) {
+        write(saveData, path);
     }
 
     /**

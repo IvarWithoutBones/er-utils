@@ -3,7 +3,7 @@
 #include <fmt/format.h>
 
 using namespace savepatcher;
-using namespace savepatcher::arguments;
+using namespace savepatcher::CommandLineArguments;
 
 static void printActiveCharacters(std::vector<Character> &characters) {
     for (auto character : characters)
@@ -19,24 +19,29 @@ static void printUsage(const ArgumentParser &parser) {
 
 int main(int argc, char **argv) {
     ArgumentParser arguments(argc, argv);
-    arguments.add<std::string_view>({
-        {"--from", "<save file>", "The path to the save file to copy from"},
-        {"--to", "<save file>", "The path to the save file to copy to"},
-        {"--read", "<save file>", "Print the slots of a save file"},
-        {"--output", "The path to the output file to write to"},
-    });
-
-    arguments.add<int>({
-        {"--append", "<slot number>", "Append character from the given slot to a save file. Both '--from' and '--to' need to be set"},
-    });
-
-    arguments.add<bool>({{"--help", "Show this help message"}});
-    if (arguments.find<bool>("--help").set) {
+    std::string defaultPath;
+    const std::filesystem::path appDataPath{fmt::format("{}/.steam/steam/steamapps/compatdata/1245620/pfx/drive_c/users/steamuser/AppData/Roaming/EldenRing", getenv("HOME"))};
+    auto targetPath{arguments.add<std::string_view>({"--to", "<savefile>", "The path to the savefile to copy to"})};
+    const auto sourcePath{arguments.add<std::string_view>({"--from", "<savefile>", "The path to the savefile to copy from"})};
+    const auto read{arguments.add<std::string_view>({"--read", "<savefile>", "Print the slots of a save file"})};
+    const auto output{arguments.add<std::string_view>({"--output", "<path>", "The path to write the generated file to"})};
+    const auto append{arguments.add<int>({"--append", "<slot number>", "Append a slot from one savefile to another. '--from' needs to be set"})};
+    if (arguments.add<bool>({"--help", "Show this help message"}).set) {
         printUsage(arguments);
         exit(0);
     }
 
-    const auto read{arguments.find<std::string_view>("--read")};
+    if (std::filesystem::exists(appDataPath)) {
+        for (auto &path : std::filesystem::directory_iterator(appDataPath))
+            if (path.is_directory()) {
+                const auto filePath{path.path() / "ER0000.sl2"};
+                if (std::filesystem::exists(filePath)) {
+                    defaultPath = filePath.generic_string();
+                    break;
+                }
+            }
+    }
+
     if (read.set) {
         const auto path{std::filesystem::path{read.value}};
         auto saveFile{SaveFile{path}};
@@ -45,37 +50,44 @@ int main(int argc, char **argv) {
         exit(0);
     }
 
-    const auto sourcePath{arguments.find<std::string_view>("--from")};
-    const auto targetPath{arguments.find<std::string_view>("--to")};
-    if (!sourcePath.set || !targetPath.set) { // TODO: add support for required arguments
+    if (!targetPath.set) {
+        if (!defaultPath.empty()) {
+            targetPath.value = defaultPath;
+            fmt::print("Found savefile at '{}'\n", defaultPath);
+        } else {
+            fmt::print("error: --to is required\n\n");
+            printUsage(arguments);
+            exit(1);
+        }
+    }
+    auto targetSave{SaveFile(std::filesystem::path{targetPath.value})};
+    if (argc == 1) {
+        printActiveCharacters(targetSave.slots);
+        exit(0);
+    }
+
+    if (!sourcePath.set && argc > 1) {
+        fmt::print("error: --from is required\n\n");
         printUsage(arguments);
         exit(1);
     }
-
     auto sourceSave{SaveFile(std::filesystem::path{sourcePath.value})};
-    auto targetSave{SaveFile(std::filesystem::path{targetPath.value})};
-
     fmt::print("Savefile to copy from:\n");
     printActiveCharacters(sourceSave.slots);
-
     fmt::print("Savefile to copy to:\n");
     printActiveCharacters(targetSave.slots);
-
-    auto appendArgument{arguments.find<int>("--append")};
-    if (appendArgument.set) {
-        if (sourceSave.slots[appendArgument.value].active)
-            targetSave.appendSlot(sourceSave, appendArgument.value);
+    if (append.set) {
+        if (sourceSave.slots[append.value].active)
+            targetSave.appendSlot(sourceSave, append.value);
         else
-            throw std::runtime_error(fmt::format("Attempting to append slot character {}", appendArgument.value));
+            throw std::runtime_error(fmt::format("Attempting to append inactive slot {}", append.value));
     }
 
     fmt::print("Generated file:\n");
     printActiveCharacters(targetSave.slots);
-
-    const auto outputArgument{arguments.find<std::string_view>("--output")};
-    if (outputArgument.set) {
-        const auto path{std::filesystem::path{outputArgument.value}};
-        targetSave.write(path.generic_string());
+    if (output.set) {
+        const auto path{std::filesystem::path{output.value}};
+        targetSave.write(path);
         fmt::print("Succesfully wrote output to file '{}'\n", util::toAbsolutePath(path));
     }
 }

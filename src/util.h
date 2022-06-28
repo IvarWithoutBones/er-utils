@@ -109,12 +109,12 @@ namespace util {
 /**
  * @brief Calculate the MD5 hash of a span of bytes
  */
-const Md5Hash GenerateMd5(std::span<u8> input);
+const Md5Hash generateMd5(std::span<u8> input);
 
 /**
  * @brief Convert a number of seconds to a human-readable timestamp
  */
-const std::string SecondsToTimeStamp(const time_t seconds);
+const std::string secondsToTimeStamp(const time_t seconds);
 
 /**
  * @brief Get an std::filesystem::path's absolute path
@@ -122,14 +122,20 @@ const std::string SecondsToTimeStamp(const time_t seconds);
 const std::string toAbsolutePath(std::filesystem::path path);
 
 /**
- * @brief A convert a std::span to an uppercase hex string
- */
-const std::string FormatHex(const std::span<u8> data);
-
-/**
  * @brief Replace all occurances of a span inside of another span
  */
-void replaceAll(std::span<u8> data, std::span<u8> find, std::span<u8> replace);
+template <typename T>
+void replaceAll(std::span<T> data, std::span<T> find, std::span<T> replace) {
+    size_t index{};
+    while (index < data.size_bytes()) {
+        auto itr{std::search(data.begin() + index, data.end(), find.begin(), find.end())};
+        if (itr == data.end())
+            break;
+
+        std::copy(replace.begin(), replace.end(), itr);
+        index = itr - data.begin();
+    }
+}
 
 } // namespace util
 

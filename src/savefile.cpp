@@ -93,45 +93,48 @@ void SaveFile::renameSlot(size_t slotIndex, std::string_view name) {
 void SaveFile::replaceSteamId(SaveSpan source) const {
     const auto sourceSteamId{SteamIdSection.bytesFrom(source)};
     const auto targetSteamId{SteamIdSection.bytesFrom(saveData)};
-    util::replaceAll(saveData, sourceSteamId, targetSteamId);
+    util::replaceAll<u8>(saveData, sourceSteamId, targetSteamId);
 }
 
 void SaveFile::recalculateChecksums(SaveSpan data) const {
-    auto saveHeaderChecksum{util::GenerateMd5(SaveHeaderSection.bytesFrom(data))};
+    auto saveHeaderChecksum{util::generateMd5(SaveHeaderSection.bytesFrom(data))};
     SaveHeaderChecksumSection.replace(data, saveHeaderChecksum);
     for (auto &slot : slots)
         slot.recalculateSlotChecksum(data);
 }
 
 void SaveFile::setSlotActivity(size_t slotIndex, bool active) {
-    slots[slotIndex].setActive(saveData, slotIndex, active);
+    slots[slotIndex].setActive(saveData, active);
     refreshSlots();
 }
 
 void Character::copy(SaveSpan source, SaveSpan target, size_t targetSlotIndex) const {
     auto targetSlotSection{ParseSlot(SlotOffset, SlotSection.size, targetSlotIndex)};
     auto targetHeaderSection{ParseHeader(SlotHeaderOffset, SlotHeaderSection.size, targetSlotIndex)};
-
     targetSlotSection.replace(target, SlotSection.bytesFrom(source));
     targetHeaderSection.replace(target, SlotHeaderSection.bytesFrom(source));
-    setActive(target, targetSlotIndex, true);
+    setActive(target, true);
 }
 
 void Character::recalculateSlotChecksum(SaveSpan data) const {
-    auto hash{util::GenerateMd5(SlotSection.bytesFrom(data))};
+    auto hash{util::generateMd5(SlotSection.bytesFrom(data))};
     SlotChecksumSection.replace(data, hash);
 }
 
-void Character::setActive(SaveSpan data, size_t index, bool value) const {
-    ActiveSection.bytesFrom(data)[index] = value;
+u32 Character::getItem(SaveSpan data, Item item) const {
+    auto slot{SlotSection.bytesFrom(data)};
+    const auto itr{std::search(slot.begin(), slot.end(), item.data.begin(), item.data.end())};
+    if (itr != slot.end())
+        return slot[(itr - slot.begin()) + item.data.size()];
+    else
+        return 0;
 }
 
-std::string Character::getTimePlayed(SaveSpan data) const {
-    return util::SecondsToTimeStamp(SecondsPlayedSection.castInteger<u32>(data));
-}
-
-std::string Character::getName(SaveSpan data) const {
-    return NameSection.charsFrom(data);
+void Character::editItem(SaveSpan data, Item item, u32 quantity) const {
+    auto slot{SlotSection.bytesFrom(data)};
+    const auto itr{std::search(slot.begin(), slot.end(), item.data.begin(), item.data.end())};
+    if (itr != slot.end())
+        slot[(itr - slot.begin()) + item.data.size()] = static_cast<u8>(quantity);
 }
 
 void Character::rename(SaveSpan data, std::string_view newName) const {
@@ -140,16 +143,24 @@ void Character::rename(SaveSpan data, std::string_view newName) const {
     NameSection.replace(data, newName);
 }
 
+void Character::setActive(SaveSpan data, bool value) const {
+    ActiveSection.bytesFrom(data)[slotIndex] = value;
+}
+
+std::string Character::getTimePlayed(SaveSpan data) const {
+    return util::secondsToTimeStamp(SecondsPlayedSection.castInteger<u32>(data));
+}
+
+std::string Character::getName(SaveSpan data) const {
+    return NameSection.charsFrom(data);
+}
+
 u64 Character::getLevel(SaveSpan data) const {
     return LevelSection.castInteger<u8>(data);
 }
 
 bool Character::isActive(SaveSpan data, size_t index) const {
     return static_cast<bool>(ActiveSection.bytesFrom(data)[index]);
-}
-
-size_t Character::getSlotIndex() const {
-    return slotIndex;
 }
 
 }; // namespace savepatcher

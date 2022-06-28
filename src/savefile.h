@@ -6,8 +6,36 @@
 
 namespace savepatcher {
 
+struct Item {
+  private:
+    constexpr static std::array<u8, 2> delimiter{0x0, 0xB0};
+
+  public:
+    const std::string_view name;
+    const std::array<u8, 4> data;
+
+    constexpr Item(std::string_view name, u8 id, u8 groupId) : name{name}, data{id, groupId, delimiter.front(), delimiter.back()} {}
+};
+
 /**
- * @brief One of the characters in a save file
+ * @brief https://github.com/Ariescyn/EldenRing-Save-Manager/blob/main/itemdata.py
+ */
+class Items {
+  public:
+    constexpr static Item goldRune1{"Golden Rune [1]", 0x54, 0xB};
+    constexpr static Item goldRune2{"Golden Rune [2]", 0x55, 0xB};
+    constexpr static Item goldRune3{"Golden Rune [3]", 0x56, 0xB};
+    constexpr static Item goldRune4{"Golden Rune [4]", 0x57, 0xB};
+    constexpr static Item goldRune5{"Golden Rune [5]", 0x58, 0xB};
+    constexpr static Item goldRune6{"Golden Rune [6]", 0x59, 0xB};
+    constexpr static Item goldRune7{"Golden Rune [7]", 0x5A, 0xB};
+    constexpr static Item goldRune8{"Golden Rune [8]", 0x5B, 0xB};
+    constexpr static Item goldRune9{"Golden Rune [9]", 0x5C, 0xB};
+    constexpr static Item goldRune10{"Golden Rune [10]", 0x5D, 0xB};
+};
+
+/**
+ * @brief One of the slots in a save file
  */
 class Character {
   public:
@@ -16,13 +44,13 @@ class Character {
     /**
      * @brief Used to calculate a target address when copying a character
      */
-    constexpr static const size_t SlotOffset{0x310};           //!< The raw offset of a save slot.
-    constexpr static const size_t SlotHeaderOffset{0x1901D0E}; //!< The raw offset of the slot header
+    constexpr static const size_t SlotOffset{0x310};
+    constexpr static const size_t SlotHeaderOffset{0x1901D0E};
 
     constexpr static Section ActiveSection{0x1901D04, 0xA};                //!< Contains booleans indicating if the character at address + slotIndex is active
     const Section SlotSection{ParseSlot(SlotOffset, 0x280000)};            //!< Contains the save data of the character
     const Section SlotChecksumSection{ParseSlot(0x300, 0x10)};             //!< Contains the checksum of the data section
-    const Section SlotHeaderSection{ParseHeader(SlotHeaderOffset, 0x24C)}; //!< Contains the slot header
+    const Section SlotHeaderSection{ParseHeader(SlotHeaderOffset, 0x24C)}; //!< Contains the slots header
     const Section NameSection{ParseHeader(0x1901D0E, 0x22)};               //!< Contains the name of the character
     const Section LevelSection{ParseHeader(0x1901D30, 0x1)};               //!< Contains the level of the character
     const Section SecondsPlayedSection{ParseHeader(0x1901D34, 0x4)};       //!< Contains the number of seconds played
@@ -78,11 +106,19 @@ class Character {
      */
     void recalculateSlotChecksum(SaveSpan data) const;
 
-    size_t getSlotIndex() const;
+    /**
+     * @brief Get the quanity of an item
+     */
+    u32 getItem(SaveSpan data, Item item) const;
+
+    /**
+     * @brief Set the quantity of an item
+     */
+    void editItem(SaveSpan data, Item item, u32 quantity) const;
+
+    void setActive(SaveSpan data, bool active) const;
 
     void rename(SaveSpan data, std::string_view newName) const;
-
-    void setActive(SaveSpan data, size_t index, bool active) const;
 };
 
 /**

@@ -8,7 +8,7 @@ using namespace savepatcher::CommandLineArguments;
 static void printActiveCharacters(std::vector<Character> &characters) {
     for (auto character : characters)
         if (character.active)
-            fmt::print("  slot {}: {}, level {}, played for {}\n", character.getSlotIndex(), character.name, character.level, character.timePlayed);
+            fmt::print("  slot {}: {}, level {}, played for {}\n", character.slotIndex, character.name, character.level, character.timePlayed);
     fmt::print("\n");
 }
 

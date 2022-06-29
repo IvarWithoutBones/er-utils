@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <fmt/format.h>
+#include <functional>
 #include <openssl/md5.h>
 #include <span>
 #include <stdexcept>
@@ -117,15 +118,33 @@ const Md5Hash generateMd5(std::span<u8> input);
 const std::string secondsToTimeStamp(const time_t seconds);
 
 /**
- * @brief Get an std::filesystem::path's absolute path
+ * @brief Get an std::filesystem::path's absolute path, used for logging
  */
 const std::string toAbsolutePath(std::filesystem::path path);
 
 /**
+ * @brief Get an environment variable's value
+ * @param name The environment variable
+ * @param defaultValue The value to return if the variable is not set
+ */
+const std::string getEnvironmentVariable(std::string_view name, std::function<std::string()> defaultValue);
+
+const std::string getEnvironmentVariable(std::string_view name, std::string defaultValue = "");
+
+/**
+ * @brief The directory to write to at runtime. This gets created if it doesn't exist.
+ */
+std::filesystem::path makeDataDirectory();
+
+/**
+ * @brief The directory to write a backup of the save file to at runtime. This gets created if it doesn't exist.
+ */
+std::filesystem::path makeBackupDirectory();
+
+/**
  * @brief Replace all occurances of a span inside of another span
  */
-template <typename T>
-void replaceAll(std::span<T> data, std::span<T> find, std::span<T> replace) {
+template <typename T> void replaceAll(std::span<T> data, std::span<T> find, std::span<T> replace) {
     size_t index{};
     while (index < data.size_bytes()) {
         auto itr{std::search(data.begin() + index, data.end(), find.begin(), find.end())};

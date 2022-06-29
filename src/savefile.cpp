@@ -76,6 +76,7 @@ void SaveFile::appendSlot(SaveFile &source, size_t sourceSlotIndex) {
     if (firstAvailableSlot == SlotCount + 1)
         throw exception("Could not find an unactive slot to append slot {} to", sourceSlotIndex);
     copySlot(source, sourceSlotIndex, firstAvailableSlot);
+    setSlotActivity(firstAvailableSlot, true);
 }
 
 void SaveFile::appendSlot(size_t sourceSlotIndex) {

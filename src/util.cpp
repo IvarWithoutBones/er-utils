@@ -1,5 +1,6 @@
 #include "util.h"
 #include <chrono>
+#include <functional>
 #include <span>
 
 namespace savepatcher::util {
@@ -29,4 +30,40 @@ const std::string toAbsolutePath(std::filesystem::path path) {
     return std::filesystem::absolute(path).generic_string();
 }
 
-} // namespace savepatcher
+const std::string getEnvironmentVariable(std::string_view name, std::function<std::string()> defaultValue) {
+    return (std::getenv(name.data()) != nullptr) ? std::getenv(name.data()) : defaultValue.operator()();
+}
+
+const std::string getEnvironmentVariable(std::string_view name, std::string defaultValue) {
+    return getEnvironmentVariable(name, [defaultValue]() { return defaultValue; });
+}
+
+std::filesystem::path makeDataDirectory() {
+    std::filesystem::path directory{getEnvironmentVariable("XDG_DATA_HOME", []() -> std::string {
+        auto home{getEnvironmentVariable("HOME")};
+        if (!home.empty())
+            return std::filesystem::path(home) / ".config";
+        return std::filesystem::current_path();
+    })};
+    directory /= "er-saveutils";
+    if (!std::filesystem::exists(directory))
+        std::filesystem::create_directory(directory);
+
+    return directory;
+}
+
+std::filesystem::path makeBackupDirectory() {
+    auto directory{makeDataDirectory() / "backup"};
+    const auto timePoint{std::chrono::system_clock::to_time_t(std::chrono::system_clock::now())};
+    auto timeStamp{fmt::format("{}", std::ctime(&timePoint))}; // TODO: format this in a better way
+    timeStamp.pop_back();                                      // remove newline, thanks ctime
+    if (!std::filesystem::exists(directory))
+        std::filesystem::create_directory(directory);
+
+    directory /= timeStamp;
+    if (!std::filesystem::exists(directory))
+        std::filesystem::create_directory(directory);
+    return directory;
+}
+
+} // namespace savepatcher::util

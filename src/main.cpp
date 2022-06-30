@@ -20,30 +20,21 @@ static void printUsage(const ArgumentParser &parser) {
 
 int main(int argc, char **argv) {
     ArgumentParser arguments(argc, argv);
-    std::string defaultFilePath;
     const std::filesystem::path appDataPath{fmt::format("{}/.steam/steam/steamapps/compatdata/1245620/pfx/drive_c/users/steamuser/AppData/Roaming/EldenRing", util::getEnvironmentVariable("HOME"))};
+    std::string defaultFilePath{util::findFileInSubDirectory(appDataPath, "ER0000.sl2")};
 
-    auto targetPath{arguments.add<std::string_view>({"--to", "<savefile>", "The path to the savefile to copy to"})};
+    auto targetPath{arguments.add<std::string_view>({"--to", "<savefile>", "The path to the savefile to copy to. By default the folder from Steam is used"})};
     const auto sourcePath{arguments.add<std::string_view>({"--from", "<savefile>", "The path to the savefile to copy from"})};
-    const auto read{arguments.add<std::string_view>({"--read", "<savefile>", "Print the slots of a save file"})};
+    const auto read{arguments.add<std::string_view>({"--read", "<savefile>", "Print the slots of a savefile"})};
+    const auto import{arguments.add<std::string_view>({"--import", "<savefile>", "Patch a savefiles Steam ID and copy it to the games directory"})};
     const auto output{arguments.add<std::string_view>({"--output", "<path>", "The path to write the generated file to"})};
     const auto append{arguments.add<int>({"--append", "<slot number>", "Append a slot from one savefile to another. '--from' needs to be set"})};
+    auto steamId{arguments.add<u64>({"--steamid", "<Steam ID>", "Set a Steam ID to patch the savefile with, in case it cannot be detected automatically"})};
     // TODO: restore argument
-    const auto write{arguments.add<bool>({"--write", "Write the generated file to the Elden Ring folder to make it available to the game. A backup is written to '~/.config/er-saveutils'"})};
+    const auto write{arguments.add<bool>({"--write", "Write the generated file to Steams Elden Ring folder to make it available to the game. A backup of the existing savefile gets written to '~/.config/er-saveutils/backup'"})};
     if (arguments.add<bool>({"--help", "Show this help message"}).set) {
         printUsage(arguments);
         exit(0);
-    }
-
-    if (std::filesystem::exists(appDataPath)) {
-        for (auto &path : std::filesystem::directory_iterator(appDataPath))
-            if (path.is_directory()) {
-                const auto filePath{path.path() / "ER0000.sl2"};
-                if (std::filesystem::exists(filePath)) {
-                    defaultFilePath = filePath.generic_string();
-                    break;
-                }
-            }
     }
 
     if (read.set) {
@@ -54,26 +45,36 @@ int main(int argc, char **argv) {
         exit(0);
     }
 
-    if (!targetPath.set) {
+    if (!targetPath.set && !import.set) {
         if (!defaultFilePath.empty()) {
             targetPath.value = defaultFilePath;
             fmt::print("Found savefile at '{}'\n", defaultFilePath);
         } else {
-            fmt::print("error: --to is required\n\n");
+            fmt::print("error: Could not find the savefile from Steam, --to is required\n\n");
             printUsage(arguments);
             exit(1);
         }
     }
 
+    if (import.set)
+        targetPath.value = import.value;
+
     auto targetSave{SaveFile(std::filesystem::path{targetPath.value})};
 
-    if (argc == 1) {
-        printActiveCharacters(targetSave.slots);
-        exit(0);
+    if (import.set)
+        if (!steamId.set)
+            steamId.value = util::getSteamId(defaultFilePath);
+
+    if (import.set || steamId.set) {
+        if (util::getDigits(steamId.value) != 17)
+            throw exception("Invalid Steam ID: {}", steamId.value);
+        fmt::print("Patching '{}' with Steam ID {}\n", targetPath.value, steamId.value);
+        targetSave.replaceSteamId(steamId.value);
     }
 
     if (append.set)
         fmt::print("Savefile to copy to:\n");
+
     printActiveCharacters(targetSave.slots);
 
     if (sourcePath.set) {
@@ -104,19 +105,12 @@ int main(int argc, char **argv) {
         fmt::print("Succesfully wrote output to file '{}'\n", util::toAbsolutePath(path));
     }
 
-    if (write.set) {
+    if (write.set || import.set) {
         if (defaultFilePath.empty())
             throw std::runtime_error("No savefile directory found to write to");
-        auto backupDir{util::makeBackupDirectory()};
-        auto originalBackup{defaultFilePath + ".bak"};
 
-        std::filesystem::copy(defaultFilePath, backupDir / "ER0000.sl2");
-        fmt::print("Wrote backup of original savefile to '{}'\n", util::toAbsolutePath(backupDir));
-        if (std::filesystem::exists(originalBackup)) {
-            std::filesystem::copy(originalBackup, backupDir / "ER0000.sl2.bak");
-            std::filesystem::remove(originalBackup); // If this differentiates from ER0000.sl2 the game will claim the savefile is corrupt
-        }
-
+        auto backupDir{util::backupAndRemoveSavefile(defaultFilePath)};
+        fmt::print("Wrote a backup of the original savefile to '{}'\n", util::toAbsolutePath(backupDir));
         targetSave.write(defaultFilePath);
         fmt::print("Wrote generated file to '{}'\n", util::toAbsolutePath(defaultFilePath));
     }

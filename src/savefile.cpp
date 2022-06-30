@@ -10,8 +10,8 @@ void SaveFile::validateData(SaveSpan data, std::string_view target) const {
         throw exception("{} is not a valid Elden Ring save file.", target);
 }
 
-u64 SaveFile::steamId(SaveSpan data) const {
-    return SteamIdSection.castInteger<u64>(data);
+u64 SaveFile::steamId() const {
+    return SteamIdSection.castInteger<u64>(saveData);
 }
 
 std::vector<u8> SaveFile::loadFile(std::filesystem::path path) const {
@@ -57,7 +57,7 @@ void SaveFile::copySlot(SaveFile &source, size_t sourceSlotIndex, size_t targetS
         throw exception("Invalid slot index while copying character");
 
     source.slots[sourceSlotIndex].copy(source.saveData, saveData, targetSlotIndex);
-    replaceSteamId(source.saveData); // Each slot has the Steam ID hardcoded, optimally we would replace that in Character
+    replaceSteamId(source.saveData, steamId());
     refreshSlots();
 }
 
@@ -91,11 +91,15 @@ void SaveFile::renameSlot(size_t slotIndex, std::string_view name) {
     refreshSlots();
 }
 
-void SaveFile::replaceSteamId(SaveSpan source) const {
-    const auto sourceSteamId{SteamIdSection.bytesFrom(source)};
-    const auto targetSteamId{SteamIdSection.bytesFrom(saveData)};
-    util::replaceAll<u8>(saveData, sourceSteamId, targetSteamId);
+void SaveFile::replaceSteamId(SaveSpan replaceFrom, u64 newSteamId) const {
+    std::array<u8, sizeof(u64)> steamIdData{};
+    std::memcpy(steamIdData.data(), &newSteamId, sizeof(u64));
+    util::replaceAll<u8>(saveData, SteamIdSection.bytesFrom(replaceFrom), steamIdData);
 }
+
+void SaveFile::replaceSteamId(u64 newSteamId) const {
+    replaceSteamId(saveData, newSteamId);
+};
 
 void SaveFile::recalculateChecksums(SaveSpan data) const {
     auto saveHeaderChecksum{util::generateMd5(SaveHeaderSection.bytesFrom(data))};

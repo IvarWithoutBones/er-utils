@@ -132,6 +132,11 @@ const std::string getEnvironmentVariable(std::string_view name, std::function<st
 const std::string getEnvironmentVariable(std::string_view name, std::string_view defaultValue = "");
 
 /**
+ * @brief Get the Steam ID based on the path to the savefile
+ */
+u64 getSteamId(std::filesystem::path saveFilePath);
+
+/**
  * @brief The directory to write to at runtime. This gets created if it doesn't exist.
  */
 std::filesystem::path makeDataDirectory();
@@ -142,9 +147,31 @@ std::filesystem::path makeDataDirectory();
 std::filesystem::path makeBackupDirectory();
 
 /**
+ * @brief Finds a file in the given directory and its subdirectories
+ */
+std::filesystem::path findFileInSubDirectory(std::filesystem::path directory, std::string_view filename);
+
+/**
+ * @brief Write the savefile to the backup directory
+ */
+std::filesystem::path backupAndRemoveSavefile(std::filesystem::path saveFilePath);
+
+/**
+ * @brief Get the amount of digits in a number
+ */
+template <class C> constexpr u32 getDigits(C input) {
+    u32 digits{};
+    while (input > 0) {
+        input /= 10;
+        digits++;
+    }
+    return digits;
+}
+
+/**
  * @brief Replace all occurances of a span inside of another span
  */
-template <typename T, class C> void replaceAll(std::span<T> data, std::span<T> find, C replace) {
+template <typename T, class C> constexpr void replaceAll(std::span<T> data, std::span<T> find, C replace) {
     size_t index{};
     if (find.size_bytes() != replace.size())
         throw exception("Size of find does not match replace");

@@ -155,9 +155,9 @@ class SaveFile {
 
     /**
      * @brief Replace the Steam ID inside the target save file
-     * @param source The data containing the Steam ID to replace
+     * @param replaceFrom The data containing the Steam ID to replace
      */
-    void replaceSteamId(SaveSpan source) const;
+    void replaceSteamId(SaveSpan replaceFrom, u64 newSteamId) const;
 
     const std::vector<Character> parseSlots(SaveSpan data) const;
 
@@ -209,11 +209,12 @@ class SaveFile {
     /**
      * @brief Get the Steam ID from the save header
      */
-    u64 steamId(SaveSpan data) const;
+    u64 steamId() const;
 
-    u64 steamId() const {
-        return steamId(saveData);
-    }
+    /**
+     * @brief Replace all occurances of the Steam ID
+     */
+    void replaceSteamId(u64 newSteamId) const;
 };
 
 } // namespace savepatcher

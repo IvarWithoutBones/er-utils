@@ -51,9 +51,9 @@ class ArgumentParser {
             briefUsageDescription += fmt::format("{} {} ", arg.name, arg.briefDescription);
         if (!arg.description.empty()) {
             if (!arg.briefDescription.empty())
-                usageDescription += fmt::format("  {} {}: {}\n", arg.name, arg.briefDescription, arg.description);
+                usageDescription += fmt::format("    {} {}: {}\n", arg.name, arg.briefDescription, arg.description);
             else
-                usageDescription += fmt::format("  {}: {}\n", arg.name, arg.description);
+                usageDescription += fmt::format("    {}: {}\n", arg.name, arg.description);
         }
 
         if (isArgued(arg.name)) {
@@ -85,6 +85,14 @@ class ArgumentParser {
     void parse(Argument<int> &arg) const {
         try {
             arg.value = std::stoi(getNextArgument(arg.name).data());
+        } catch (const std::exception) {
+            throw exception("Invalid value for '{}'", arg.name);
+        }
+    }
+
+    void parse(Argument<u64> &arg) const {
+        try {
+            arg.value = std::stoull(getNextArgument(arg.name).data());
         } catch (const std::exception) {
             throw exception("Invalid value for '{}'", arg.name);
         }

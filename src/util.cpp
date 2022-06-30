@@ -38,6 +38,32 @@ const std::string getEnvironmentVariable(std::string_view name, std::string_view
     return getEnvironmentVariable(name, [defaultValue]() { return defaultValue.data(); });
 }
 
+std::filesystem::path findFileInSubDirectory(std::filesystem::path directory, std::string_view filename) {
+    if (std::filesystem::exists(directory)) {
+        for (auto &path : std::filesystem::directory_iterator(directory))
+            if (path.is_directory()) {
+                const auto filePath{path.path() / filename};
+                if (std::filesystem::exists(filePath)) {
+                    return filePath;
+                }
+            }
+    }
+
+    return {};
+}
+
+u64 getSteamId(std::filesystem::path saveFilePath) {
+    u64 steamId;
+    try {
+        // Folder structure is 'EldenRing/<Steam ID>/ER0000.sl2'
+        steamId = static_cast<u64>(std::stoull(saveFilePath.parent_path().filename().generic_string()));
+    } catch (std::exception &e) {
+        exception("Failed to parse Steam ID: {}", e.what());
+    }
+
+    return steamId;
+}
+
 std::filesystem::path makeDataDirectory() {
     std::filesystem::path directory{getEnvironmentVariable("XDG_DATA_HOME", []() -> std::filesystem::path {
         auto home{getEnvironmentVariable("HOME")};
@@ -64,6 +90,19 @@ std::filesystem::path makeBackupDirectory() {
     if (!std::filesystem::exists(directory))
         std::filesystem::create_directory(directory);
     return directory;
+}
+
+std::filesystem::path backupAndRemoveSavefile(std::filesystem::path saveFilePath) {
+    auto backupDir{util::makeBackupDirectory()};
+    std::filesystem::path bakFilePath{saveFilePath.string() + ".bak"};
+    if (std::filesystem::exists(saveFilePath))
+        std::filesystem::copy(saveFilePath, backupDir / saveFilePath.filename());
+    if (std::filesystem::exists(bakFilePath)) {
+        std::filesystem::copy(bakFilePath, backupDir / bakFilePath.filename());
+        std::filesystem::remove(bakFilePath); // If this differentiates from ER0000.sl2 the game will claim the savefile is corrupt
+    }
+
+    return backupDir;
 }
 
 } // namespace savepatcher::util

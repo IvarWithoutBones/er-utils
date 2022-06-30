@@ -4,7 +4,6 @@
 #include <fmt/format.h>
 
 using namespace savepatcher;
-using namespace savepatcher::CommandLineArguments;
 
 static void printActiveCharacters(std::vector<Character> &characters) {
     for (auto character : characters)
@@ -13,13 +12,13 @@ static void printActiveCharacters(std::vector<Character> &characters) {
     fmt::print("\n");
 }
 
-static void printUsage(const ArgumentParser &parser) {
+static void printUsage(const CommandLineArguments::ArgumentParser &parser) {
     const auto [programName, briefUsage, fullUsage] = parser.getUsage();
     fmt::print("Usage: {} {}\n{}\n", programName, briefUsage, fullUsage);
 }
 
 int main(int argc, char **argv) {
-    ArgumentParser arguments(argc, argv);
+    CommandLineArguments::ArgumentParser arguments(argc, argv);
     const std::filesystem::path appDataPath{fmt::format("{}/.steam/steam/steamapps/compatdata/1245620/pfx/drive_c/users/steamuser/AppData/Roaming/EldenRing", util::getEnvironmentVariable("HOME"))};
     std::string defaultFilePath{util::findFileInSubDirectory(appDataPath, "ER0000.sl2")};
 
@@ -32,7 +31,10 @@ int main(int argc, char **argv) {
     auto steamId{arguments.add<u64>({"--steamid", "<Steam ID>", "Set a Steam ID to patch the savefile with, in case it cannot be detected automatically"})};
     // TODO: restore argument
     const auto write{arguments.add<bool>({"--write", "Write the generated file to Steams Elden Ring folder to make it available to the game. A backup of the existing savefile gets written to '~/.config/er-saveutils/backup'"})};
-    if (arguments.add<bool>({"--help", "Show this help message"}).set) {
+    auto help{arguments.add<bool>({"--help", "Show this help message"})};
+    arguments.checkForUnexpected();
+
+    if (help.set) {
         printUsage(arguments);
         exit(0);
     }
@@ -86,7 +88,7 @@ int main(int argc, char **argv) {
             if (sourceSave.slots[append.value].active)
                 targetSave.appendSlot(sourceSave, append.value);
             else
-                throw std::runtime_error(fmt::format("Attempting to append inactive slot {}", append.value));
+                throw exception("Attempting to append inactive slot {}", append.value);
         }
     } else if (append.set) {
         fmt::print("error: Could not find a savefile, please set one manually with '--from'\n\n");
@@ -107,7 +109,7 @@ int main(int argc, char **argv) {
 
     if (write.set || import.set) {
         if (defaultFilePath.empty())
-            throw std::runtime_error("No savefile directory found to write to");
+            throw exception("No savefile directory found to write to");
 
         auto backupDir{util::backupAndRemoveSavefile(defaultFilePath)};
         fmt::print("Wrote a backup of the original savefile to '{}'\n", util::toAbsolutePath(backupDir));

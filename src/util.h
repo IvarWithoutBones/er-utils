@@ -78,11 +78,11 @@ struct Section {
         std::copy(newSection.begin(), newSection.end(), data.begin() + address);
     }
 
-    constexpr void replace(std::span<u8> data, std::string_view newString) const {
-        if (newString.size() > size)
-            throw exception("String with length {:X} is bigger than section size {:X}", newString.size(), size);
-        else if (newString.size() < size)
+    template <class C> constexpr void replace(std::span<u8> data, C newString) const {
+        if (newString.size() < size)
             std::fill(data.begin() + address + newString.size(), data.begin() + address + size, 0); // 0 fill the remainder of the section
+        else if (newString.size() > size)
+            throw exception("String with length {:X} is bigger than section size {:X}", newString.size(), size);
 
         std::copy(newString.data(), newString.data() + newString.size(), data.begin() + address);
     }
@@ -129,7 +129,7 @@ const std::string toAbsolutePath(std::filesystem::path path);
  */
 const std::string getEnvironmentVariable(std::string_view name, std::function<std::string()> defaultValue);
 
-const std::string getEnvironmentVariable(std::string_view name, std::string defaultValue = "");
+const std::string getEnvironmentVariable(std::string_view name, std::string_view defaultValue = "");
 
 /**
  * @brief The directory to write to at runtime. This gets created if it doesn't exist.
@@ -144,15 +144,18 @@ std::filesystem::path makeBackupDirectory();
 /**
  * @brief Replace all occurances of a span inside of another span
  */
-template <typename T> void replaceAll(std::span<T> data, std::span<T> find, std::span<T> replace) {
+template <typename T, class C> void replaceAll(std::span<T> data, std::span<T> find, C replace) {
     size_t index{};
-    while (index < data.size_bytes()) {
+    if (find.size_bytes() != replace.size())
+        throw exception("Size of find does not match replace");
+
+    while (true) {
         auto itr{std::search(data.begin() + index, data.end(), find.begin(), find.end())};
         if (itr == data.end())
             break;
 
         std::copy(replace.begin(), replace.end(), itr);
-        index = itr - data.begin();
+        index = itr - data.begin() + 1;
     }
 }
 

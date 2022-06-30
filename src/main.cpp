@@ -66,6 +66,7 @@ int main(int argc, char **argv) {
     }
 
     auto targetSave{SaveFile(std::filesystem::path{targetPath.value})};
+
     if (argc == 1) {
         printActiveCharacters(targetSave.slots);
         exit(0);
@@ -81,37 +82,42 @@ int main(int argc, char **argv) {
         printActiveCharacters(sourceSave.slots);
 
         if (append.set) {
-            if (sourceSave.slots[append.value].active) {
+            if (sourceSave.slots[append.value].active)
                 targetSave.appendSlot(sourceSave, append.value);
-            } else
+            else
                 throw std::runtime_error(fmt::format("Attempting to append inactive slot {}", append.value));
         }
     } else if (append.set) {
-        fmt::print("error: --from is required\n\n");
+        fmt::print("error: Could not find a savefile, please set one manually with '--from'\n\n");
         printUsage(arguments);
         exit(1);
     }
 
-    if (append.set) {
+    if (append.set || output.set || write.set) {
         fmt::print("Generated file:\n");
         printActiveCharacters(targetSave.slots);
+    }
 
-        if (output.set) {
-            const auto path{std::filesystem::path{output.value}};
-            targetSave.write(path);
-            fmt::print("Succesfully wrote output to file '{}'\n", util::toAbsolutePath(path));
+    if (output.set) {
+        const auto path{std::filesystem::path{output.value}};
+        targetSave.write(path);
+        fmt::print("Succesfully wrote output to file '{}'\n", util::toAbsolutePath(path));
+    }
+
+    if (write.set) {
+        if (defaultFilePath.empty())
+            throw std::runtime_error("No savefile directory found to write to");
+        auto backupDir{util::makeBackupDirectory()};
+        auto originalBackup{defaultFilePath + ".bak"};
+
+        std::filesystem::copy(defaultFilePath, backupDir / "ER0000.sl2");
+        fmt::print("Wrote backup of original savefile to '{}'\n", util::toAbsolutePath(backupDir));
+        if (std::filesystem::exists(originalBackup)) {
+            std::filesystem::copy(originalBackup, backupDir / "ER0000.sl2.bak");
+            std::filesystem::remove(originalBackup); // If this differentiates from ER0000.sl2 the game will claim the savefile is corrupt
         }
 
-        if (write.set) {
-            if (defaultFilePath.empty())
-                throw std::runtime_error("No savefile directory found to write to");
-
-            auto backupPath{util::makeBackupDirectory() / "ER0000.sl2"};
-            std::filesystem::copy(defaultFilePath, backupPath);
-            targetSave.write(defaultFilePath);
-            std::filesystem::remove(defaultFilePath + ".bak");
-            fmt::print("Wrote backup of original savefile to '{}'\n", util::toAbsolutePath(backupPath));
-            fmt::print("Wrote generated file to '{}'\n", util::toAbsolutePath(defaultFilePath));
-        }
+        targetSave.write(defaultFilePath);
+        fmt::print("Wrote generated file to '{}'\n", util::toAbsolutePath(defaultFilePath));
     }
 }

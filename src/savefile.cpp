@@ -125,10 +125,7 @@ void Character::recalculateSlotChecksum(SaveSpan data) const {
 u32 Character::getItem(SaveSpan data, Item item) const {
     auto slot{SlotSection.bytesFrom(data)};
     const auto itr{std::search(slot.begin(), slot.end(), item.data.begin(), item.data.end())};
-    if (itr != slot.end())
-        return slot[(itr - slot.begin()) + item.data.size()];
-    else
-        return 0;
+    return (itr != slot.end()) ? slot[itr - slot.begin() + item.data.size()] : 0;
 }
 
 void Character::editItem(SaveSpan data, Item item, u32 quantity) const {
@@ -139,9 +136,15 @@ void Character::editItem(SaveSpan data, Item item, u32 quantity) const {
 }
 
 void Character::rename(SaveSpan data, std::string_view newName) const {
-    // TODO: Theres some instances of the name being missed, presumably in the save header. The easiest fix would be just
-    // replacing all occurances of the old name with the new name, but that would break if two characters had the same name.
-    NameSection.replace(data, newName);
+    std::vector<u8> convertedName{};
+    for (auto c : newName) { // This probably isnt a good way of doing things, seems very slow
+        convertedName.push_back(static_cast<u8>(c));
+        convertedName.push_back(0); // Is this UTF-16?
+    }
+    convertedName.resize(NameSection.size);
+
+    // Any characters sharing the same will get replaced with the new name, havent found a better way yet
+    util::replaceAll<u8>(data, NameSection.bytesFrom(data), convertedName);
 }
 
 void Character::setActive(SaveSpan data, bool value) const {

@@ -31,24 +31,24 @@ const std::string toAbsolutePath(std::filesystem::path path) {
 }
 
 const std::string getEnvironmentVariable(std::string_view name, std::function<std::string()> defaultValue) {
-    return (std::getenv(name.data()) != nullptr) ? std::getenv(name.data()) : defaultValue.operator()();
+    return {(std::getenv(name.data()) != nullptr) ? std::getenv(name.data()) : defaultValue.operator()()};
 }
 
-const std::string getEnvironmentVariable(std::string_view name, std::string defaultValue) {
-    return getEnvironmentVariable(name, [defaultValue]() { return defaultValue; });
+const std::string getEnvironmentVariable(std::string_view name, std::string_view defaultValue) {
+    return getEnvironmentVariable(name, [defaultValue]() { return defaultValue.data(); });
 }
 
 std::filesystem::path makeDataDirectory() {
-    std::filesystem::path directory{getEnvironmentVariable("XDG_DATA_HOME", []() -> std::string {
+    std::filesystem::path directory{getEnvironmentVariable("XDG_DATA_HOME", []() -> std::filesystem::path {
         auto home{getEnvironmentVariable("HOME")};
         if (!home.empty())
             return std::filesystem::path(home) / ".config";
         return std::filesystem::current_path();
     })};
+
     directory /= "er-saveutils";
     if (!std::filesystem::exists(directory))
         std::filesystem::create_directory(directory);
-
     return directory;
 }
 

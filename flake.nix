@@ -7,8 +7,6 @@ rec {
 
   outputs = { self, nixpkgs }:
     let
-      version = builtins.substring 0 8 self.lastModifiedDate;
-
       forAllSystems = nixpkgs.lib.genAttrs [ "x86_64-linux" ];
 
       # Nixpkgs instantiated for each supported system
@@ -19,12 +17,13 @@ rec {
         });
     in
     {
-      overlays.default = final: prev: {
+      overlays.default = final: prev: rec {
         erutils = with final; clang13Stdenv.mkDerivation rec {
           pname = "erutils";
-          inherit version;
+          version = "0.0.1";
 
           src = self;
+          doInstallCheck = true;
 
           nativeBuildInputs = [
             cmake
@@ -34,6 +33,11 @@ rec {
             fmt_8
             openssl
           ];
+
+          installCheckPhase = ''
+            ./erutils --version | grep -q 'v${version}' || exit 1
+            echo "found version 'v${version}'";
+          '';
 
           meta = with lib; {
             inherit description;

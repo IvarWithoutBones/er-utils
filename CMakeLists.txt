@@ -35,6 +35,10 @@ target_compile_options(erutils PRIVATE
     -Wno-c++98-compat-extra-semi
 )
 
+if (VERSION)
+    add_definitions(-DVERSION="${VERSION}")
+endif()
+
 find_package(OpenSSL REQUIRED)
 find_package(fmt REQUIRED)
 message("-- Found fmt: ${fmt_DIR}")

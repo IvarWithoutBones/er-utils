@@ -31,11 +31,21 @@ int main(int argc, char **argv) {
     auto steamId{arguments.add<u64>({"--steamid", "<Steam ID>", "Set a Steam ID to patch the savefile with, in case it cannot be detected automatically"})};
     // TODO: restore argument
     const auto write{arguments.add<bool>({"--write", "Write the generated file to Steams Elden Ring folder to make it available to the game. A backup of the existing savefile gets written to '~/.config/er-saveutils/backup'"})};
-    auto help{arguments.add<bool>({"--help", "Show this help message"})};
+    auto help{arguments.add<bool>({"--help", "Print this help message"})};
+    auto version{arguments.add<bool>({"--version", "Print the version of the program"})};
     arguments.checkForUnexpected();
 
     if (help.set) {
         printUsage(arguments);
+        exit(0);
+    }
+
+    if (version.set) {
+        #ifndef VERSION
+        #define VERSION "0.0.1"
+        #endif
+
+        fmt::print("er-saveutils v{}\n", VERSION);
         exit(0);
     }
 
@@ -96,7 +106,7 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    if (append.set || output.set || write.set) {
+    if (append.set) {
         fmt::print("Generated file:\n");
         printActiveCharacters(targetSave.slots);
     }

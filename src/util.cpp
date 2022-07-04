@@ -52,6 +52,12 @@ std::filesystem::path findFileInSubDirectory(std::filesystem::path directory, st
     return {};
 }
 
+void utf8ToUtf16(std::span<u8> chars, std::u16string_view text) {
+    std::memcpy(chars.data(), text.data(), std::min(text.size() * sizeof(char16_t), chars.size_bytes()));
+    if (text.size() * sizeof(char16_t) > chars.size()) // Null terminate if the string if it isnt out of bounds
+        *(reinterpret_cast<char16_t *>(chars.data()) + text.size()) = u'\0';
+}
+
 u64 getSteamId(std::filesystem::path saveFilePath) {
     u64 steamId;
     try {

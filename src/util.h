@@ -113,14 +113,9 @@ namespace util {
 const Md5Hash generateMd5(std::span<u8> input);
 
 /**
- * @brief Convert a number of seconds to a human-readable timestamp
+ * @brief Convert UTF-8 to UTF-16
  */
-const std::string secondsToTimeStamp(const time_t seconds);
-
-/**
- * @brief Get an std::filesystem::path's absolute path, used for logging
- */
-const std::string toAbsolutePath(std::filesystem::path path);
+void utf8ToUtf16(std::span<u8> chars, std::u16string_view text);
 
 /**
  * @brief Get an environment variable's value
@@ -135,6 +130,16 @@ const std::string getEnvironmentVariable(std::string_view name, std::string_view
  * @brief Get the Steam ID based on the path to the savefile
  */
 u64 getSteamId(std::filesystem::path saveFilePath);
+
+/**
+ * @brief Convert a number of seconds to a human-readable timestamp
+ */
+const std::string secondsToTimeStamp(const time_t seconds);
+
+/**
+ * @brief Get an std::filesystem::path's absolute path, used for logging
+ */
+const std::string toAbsolutePath(std::filesystem::path path);
 
 /**
  * @brief The directory to write to at runtime. This gets created if it doesn't exist.

@@ -89,6 +89,16 @@ class ArgumentParser {
         }
     }
 
+    void parse(Argument<std::tuple<int, std::string_view>> &arg) {
+        auto nextArg{getNextArgument(arg.name).data()};
+        std::string_view nextNextArg{getNextArgument(nextArg)};
+        try {
+            arg.value = std::make_tuple(std::stoi(nextArg), nextNextArg);
+        } catch (const std::exception) {
+            throw exception("Invalid value for '{}'", arg.name);
+        }
+    }
+
     void parse(Argument<u64> &arg) {
         try {
             arg.value = std::stoull(getNextArgument(arg.name).data());

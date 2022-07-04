@@ -2,6 +2,7 @@
 #include "util.h"
 #include <fstream>
 #include <span>
+#include <string_view>
 
 namespace savepatcher {
 
@@ -140,15 +141,10 @@ void Character::editItem(SaveSpan data, Item item, u32 quantity) const {
 }
 
 void Character::rename(SaveSpan data, std::string_view newName) const {
-    std::vector<u8> convertedName{};
-    for (auto c : newName) { // This probably isnt a good way of doing things, seems very slow
-        convertedName.push_back(static_cast<u8>(c));
-        convertedName.push_back(0); // Is this UTF-16?
-    }
-    convertedName.resize(NameSection.size);
-
-    // Any characters sharing the same will get replaced with the new name, havent found a better way yet
-    util::replaceAll<u8>(data, NameSection.bytesFrom(data), convertedName);
+    std::array<u8, NameSection.size> convertedName{};
+    util::utf8ToUtf16(convertedName, std::u16string(newName.begin(), newName.end()));
+    // Any characters sharing the same name will get replaced with the new name as of now
+    util::replaceAll<u8>(data, parsedNameSection.bytesFrom(data), convertedName);
 }
 
 void Character::setActive(SaveSpan data, bool value) const {
@@ -160,7 +156,7 @@ std::string Character::getTimePlayed(SaveSpan data) const {
 }
 
 std::string Character::getName(SaveSpan data) const {
-    return NameSection.charsFrom(data);
+    return parsedNameSection.charsFrom(data);
 }
 
 u64 Character::getLevel(SaveSpan data) const {

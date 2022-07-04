@@ -3,6 +3,10 @@
 #include "util.h"
 #include <fmt/format.h>
 
+#ifndef VERSION
+#define VERSION "0.0.1"
+#endif
+
 using namespace savepatcher;
 
 static void printActiveCharacters(std::vector<Character> &characters) {
@@ -31,6 +35,7 @@ int main(int argc, char **argv) {
     auto steamId{arguments.add<u64>({"--steamid", "<Steam ID>", "Set a Steam ID to patch the savefile with, in case it cannot be detected automatically"})};
     // TODO: restore argument
     const auto write{arguments.add<bool>({"--write", "Write the generated file to Steams Elden Ring folder to make it available to the game. A backup of the existing savefile gets written to '~/.config/er-saveutils/backup'"})};
+    auto rename{arguments.add<std::tuple<int, std::string_view>>({"--rename", "<slot number> <name>", "Rename a slot in the savefile"})};
     auto help{arguments.add<bool>({"--help", "Print this help message"})};
     auto version{arguments.add<bool>({"--version", "Print the version of the program"})};
     arguments.checkForUnexpected();
@@ -41,10 +46,6 @@ int main(int argc, char **argv) {
     }
 
     if (version.set) {
-        #ifndef VERSION
-        #define VERSION "0.0.1"
-        #endif
-
         fmt::print("er-saveutils v{}\n", VERSION);
         exit(0);
     }
@@ -72,6 +73,14 @@ int main(int argc, char **argv) {
         targetPath.value = import.value;
 
     auto targetSave{SaveFile(std::filesystem::path{targetPath.value})};
+
+    if (rename.set) {
+        const auto [slotIndex, name] = rename.value;
+        fmt::print("Renaming slot {} to '{}'\n", slotIndex, name);
+        if (!targetSave.slots[slotIndex].active)
+            throw exception("Slot {} is not active while renaming", slotIndex);
+        targetSave.renameSlot(slotIndex, name);
+    }
 
     if (import.set)
         if (!steamId.set)

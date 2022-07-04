@@ -1,3 +1,4 @@
+#include "items.h"
 #include "util.h"
 #include <filesystem>
 #include <span>
@@ -5,34 +6,6 @@
 #include <vector>
 
 namespace savepatcher {
-
-struct Item {
-  private:
-    constexpr static std::array<u8, 2> delimiter{0x0, 0xB0};
-
-  public:
-    const std::string_view name;
-    const std::array<u8, 4> data;
-
-    constexpr Item(std::string_view name, u8 id, u8 groupId) : name{name}, data{id, groupId, delimiter.front(), delimiter.back()} {}
-};
-
-/**
- * @brief https://github.com/Ariescyn/EldenRing-Save-Manager/blob/main/itemdata.py
- */
-class Items {
-  public:
-    constexpr static Item goldRune1{"Golden Rune [1]", 0x54, 0xB};
-    constexpr static Item goldRune2{"Golden Rune [2]", 0x55, 0xB};
-    constexpr static Item goldRune3{"Golden Rune [3]", 0x56, 0xB};
-    constexpr static Item goldRune4{"Golden Rune [4]", 0x57, 0xB};
-    constexpr static Item goldRune5{"Golden Rune [5]", 0x58, 0xB};
-    constexpr static Item goldRune6{"Golden Rune [6]", 0x59, 0xB};
-    constexpr static Item goldRune7{"Golden Rune [7]", 0x5A, 0xB};
-    constexpr static Item goldRune8{"Golden Rune [8]", 0x5B, 0xB};
-    constexpr static Item goldRune9{"Golden Rune [9]", 0x5C, 0xB};
-    constexpr static Item goldRune10{"Golden Rune [10]", 0x5D, 0xB};
-};
 
 /**
  * @brief One of the slots in a save file
@@ -115,7 +88,7 @@ class Character {
     /**
      * @brief Set the quantity of an item
      */
-    void editItem(SaveSpan data, Item item, u32 quantity) const;
+    void setItem(SaveSpan data, Item item, u32 quantity) const;
 
     void setActive(SaveSpan data, bool active) const;
 
@@ -216,6 +189,16 @@ class SaveFile {
      * @brief Replace all occurances of the Steam ID
      */
     void replaceSteamId(u64 newSteamId) const;
+
+    /**
+     * @brief Get the quantity of an item in the given slot
+     */
+    u32 getItem(size_t slot, Item item) const;
+
+    /**
+     * @brief Set the quantity of an item in the given slot
+     */
+    void setItem(size_t slot, Item item, u32 quantity) const;
 };
 
 } // namespace savepatcher

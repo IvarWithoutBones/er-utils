@@ -12,8 +12,7 @@ using namespace savepatcher;
 static void printActiveCharacters(std::vector<Character> &characters) {
     for (auto character : characters)
         if (character.active)
-            fmt::print("  slot {}: {}, level {}, played for {}\n", character.slotIndex, character.name, character.level, character.timePlayed);
-    fmt::print("\n");
+            fmt::print("    slot {}: {}, level {}, played for {}\n", character.slotIndex, character.name, character.level, character.timePlayed);
 }
 
 static void printUsage(const CommandLineArguments::ArgumentParser &parser) {
@@ -36,6 +35,8 @@ int main(int argc, char **argv) {
     // TODO: restore argument
     const auto write{arguments.add<bool>({"--write", "Write the generated file to Steams Elden Ring folder to make it available to the game. A backup of the existing savefile gets written to '~/.config/er-saveutils/backup'"})};
     auto rename{arguments.add<std::tuple<int, std::string_view>>({"--rename", "<slot number> <name>", "Rename a slot in the savefile"})};
+    auto listItems{arguments.add<int>({"--list-items", "<slot number>", "List all items in the given slot"})};
+    auto setItem{arguments.add<std::tuple<int, std::string_view, u32>>({"--set-item", "<slot number> <item name> <item count>", "Set the number of a given item in a slot. To see a list of all available items, use --list-items"})};
     auto help{arguments.add<bool>({"--help", "Print this help message"})};
     auto version{arguments.add<bool>({"--version", "Print the version of the program"})};
     arguments.checkForUnexpected();
@@ -95,8 +96,31 @@ int main(int argc, char **argv) {
 
     if (append.set)
         fmt::print("Savefile to copy to:\n");
+    if (listItems.set || setItem.set)
+        fmt::print("Slots:\n", listItems.value);
 
     printActiveCharacters(targetSave.slots);
+
+    if (setItem.set) {
+        Items items{};
+        const auto [slotIndex, itemName, itemCount] = setItem.value;
+        auto item{items[itemName]};
+        fmt::print("Setting item {} to {} in slot {}\n", itemName, itemCount, slotIndex);
+        if (!targetSave.slots[slotIndex].active)
+            throw exception("Slot {} is not active while setting item", slotIndex);
+        if (targetSave.getItem(slotIndex, item) == 0)
+            throw exception("Could not set item {} to {} in slot {} as it is not present in the savefile", itemName, itemCount, slotIndex);
+        targetSave.setItem(slotIndex, item, itemCount);
+    }
+
+    if (listItems.set) {
+        Items items{};
+        fmt::print("Items in slot {}:\n", listItems.value);
+        if (!targetSave.slots[listItems.value].active)
+            throw exception("Slot {} is not active while listing items", listItems.value);
+        for (auto item : items)
+            fmt::print("    {}: {}\n", item.first, targetSave.getItem(listItems.value, item.second));
+    }
 
     if (sourcePath.set) {
         auto sourceSave{SaveFile(std::filesystem::path{sourcePath.value})};

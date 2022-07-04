@@ -114,6 +114,14 @@ void SaveFile::setSlotActivity(size_t slotIndex, bool active) {
     refreshSlots();
 }
 
+u32 SaveFile::getItem(size_t slot, Item item) const {
+    return slots[slot].getItem(saveData, item);
+}
+
+void SaveFile::setItem(size_t slot, Item item, u32 quantity) const {
+    slots[slot].setItem(saveData, item, quantity);
+}
+
 void Character::copy(SaveSpan source, SaveSpan target, size_t targetSlotIndex) const {
     auto targetSlotSection{ParseSlot(SlotOffset, SlotSection.size, targetSlotIndex)};
     auto targetHeaderSection{ParseHeader(SlotHeaderOffset, SlotHeaderSection.size, targetSlotIndex)};
@@ -133,7 +141,7 @@ u32 Character::getItem(SaveSpan data, Item item) const {
     return (itr != slot.end()) ? slot[itr - slot.begin() + item.data.size()] : 0;
 }
 
-void Character::editItem(SaveSpan data, Item item, u32 quantity) const {
+void Character::setItem(SaveSpan data, Item item, u32 quantity) const {
     auto slot{SlotSection.bytesFrom(data)};
     const auto itr{std::search(slot.begin(), slot.end(), item.data.begin(), item.data.end())};
     if (itr != slot.end())

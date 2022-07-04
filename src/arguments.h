@@ -91,9 +91,20 @@ class ArgumentParser {
 
     void parse(Argument<std::tuple<int, std::string_view>> &arg) {
         auto nextArg{getNextArgument(arg.name).data()};
-        std::string_view nextNextArg{getNextArgument(nextArg)};
+        auto nextNextArg{getNextArgument(nextArg)};
         try {
             arg.value = std::make_tuple(std::stoi(nextArg), nextNextArg);
+        } catch (const std::exception) {
+            throw exception("Invalid value for '{}'", arg.name);
+        }
+    }
+
+    void parse(Argument<std::tuple<int, std::string_view, u32>> &arg) {
+        auto nextArg{getNextArgument(arg.name).data()};
+        auto nextNextArg{getNextArgument(nextArg)};
+        auto nextNextNextArg{getNextArgument(nextNextArg)};
+        try {
+            arg.value = std::make_tuple(std::stoi(nextArg), nextNextArg, std::stoul(nextNextNextArg.data()));
         } catch (const std::exception) {
             throw exception("Invalid value for '{}'", arg.name);
         }

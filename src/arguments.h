@@ -1,9 +1,6 @@
 #include "util.h"
-#include <filesystem>
+#include <concepts>
 #include <fmt/core.h>
-#include <ranges>
-#include <string>
-#include <vector>
 
 namespace CommandLineArguments {
 using namespace savepatcher; // for exception
@@ -17,12 +14,12 @@ struct ArgumentBase {
 /**
  * @brief The container type for static command line arguments
  */
-template <typename T> struct Argument : ArgumentBase {
+template <typename Type> struct Argument : ArgumentBase {
     const std::string_view name{};
     const std::string_view description;
     const std::string_view briefDescription;
     bool set{false};
-    T value{};
+    Type value{};
 
     constexpr Argument() = default;
     constexpr Argument(std::string_view name) : name(name) {}
@@ -45,7 +42,7 @@ class ArgumentParser {
     /**
      * @brief Append an argument to the argument container and parse it if it is set
      */
-    template <typename T> constexpr void init(Argument<T> &arg) {
+    template <typename Type> constexpr void addArgument(Argument<Type> &arg) {
         // TODO: dont assume formatting like this
         if (!arg.briefDescription.empty())
             briefUsageDescription += fmt::format("{} {} ", arg.name, arg.briefDescription);
@@ -62,7 +59,7 @@ class ArgumentParser {
         }
 
         argumentNames.emplace_back(arg.name);
-        arguments.emplace_back(std::make_shared<Argument<T>>(arg));
+        arguments.emplace_back(std::make_shared<Argument<Type>>(arg));
     }
 
     constexpr bool isSet(std::string_view argumentName) const {
@@ -81,49 +78,45 @@ class ArgumentParser {
         return rawArguments[nextArgPos];
     }
 
-    void parse(Argument<int> &arg) {
+    /**
+     * @brief Convert a string to a numeric type
+     */
+    template <typename Type> constexpr Type toNumber(std::string_view value, std::string_view argumentName = "") const {
         try {
-            arg.value = std::stoi(getNextArgument(arg.name).data());
+            if constexpr (sizeof(u64) >= sizeof(Type))
+                return static_cast<Type>(std::stoull(value.data()));
+            else
+                return static_cast<Type>(std::stoi(value.data()));
         } catch (const std::exception) {
-            throw exception("Invalid value for '{}'", arg.name);
+            if (argumentName.empty())
+                throw exception("Invalid argument value '{}'", value);
+            else
+                throw exception("Invalid argument value '{}' for '{}'", value, argumentName);
         }
     }
 
-    void parse(Argument<std::tuple<int, std::string_view>> &arg) {
-        auto nextArg{getNextArgument(arg.name).data()};
-        auto nextNextArg{getNextArgument(nextArg)};
-        try {
-            arg.value = std::make_tuple(std::stoi(nextArg), nextNextArg);
-        } catch (const std::exception) {
-            throw exception("Invalid value for '{}'", arg.name);
-        }
+    /**
+     * @brief Convert a string to a number if the type is arithmetic
+     */
+    template <typename Type> constexpr Type maybeNumber(std::string_view value) const {
+        if constexpr (std::is_arithmetic_v<Type>)
+            return toNumber<Type>(value);
+        else
+            return value;
     }
 
-    void parse(Argument<std::tuple<int, std::string_view, u32>> &arg) {
-        auto nextArg{getNextArgument(arg.name).data()};
-        auto nextNextArg{getNextArgument(nextArg)};
-        auto nextNextNextArg{getNextArgument(nextNextArg)};
-        try {
-            arg.value = std::make_tuple(std::stoi(nextArg), nextNextArg, std::stoul(nextNextNextArg.data()));
-        } catch (const std::exception) {
-            throw exception("Invalid value for '{}'", arg.name);
-        }
+    template <typename First, typename Second> constexpr void parse(Argument<std::pair<First, Second>> &arg) {
+        auto nextArgument{getNextArgument(arg.name)};
+        arg.value = std::make_pair(maybeNumber<First>(nextArgument), maybeNumber<Second>(getNextArgument(nextArgument)));
     }
 
-    void parse(Argument<u64> &arg) {
-        try {
-            arg.value = std::stoull(getNextArgument(arg.name).data());
-        } catch (const std::exception) {
-            throw exception("Invalid value for '{}'", arg.name);
-        }
+    template <typename Type>
+    requires(!std::is_same<bool, Type>::value) constexpr void parse(Argument<Type> &arg) {
+        arg.value = maybeNumber<Type>(getNextArgument(arg.name));
     }
 
     constexpr void parse(Argument<bool> &arg) const {
         arg.value = true;
-    }
-
-    constexpr void parse(Argument<std::string_view> &arg) {
-        arg.value = getNextArgument(arg.name);
     }
 
   public:
@@ -131,14 +124,14 @@ class ArgumentParser {
 
     template <typename T> constexpr void add(const std::initializer_list<Argument<T>> args) {
         for (auto arg : args)
-            init(arg);
+            addArgument(arg);
     }
 
     /**
      * @brief Add an argument to the argument container
      */
     template <typename T> constexpr Argument<T> add(Argument<T> arg) {
-        init(arg);
+        addArgument(arg);
         return arg;
     }
 

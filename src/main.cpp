@@ -25,18 +25,19 @@ int main(int argc, char **argv) {
     const std::filesystem::path appDataPath{fmt::format("{}/.steam/steam/steamapps/compatdata/1245620/pfx/drive_c/users/steamuser/AppData/Roaming/EldenRing", util::getEnvironmentVariable("HOME"))};
     std::string defaultFilePath{util::findFileInSubDirectory(appDataPath, "ER0000.sl2")};
 
-    auto targetPath{arguments.add<std::string_view>({"--to", "<savefile>", "The path to the savefile to copy to. By default the folder from Steam is used"})};
-    const auto sourcePath{arguments.add<std::string_view>({"--from", "<savefile>", "The path to the savefile to copy from"})};
-    const auto read{arguments.add<std::string_view>({"--read", "<savefile>", "Print the slots of a savefile"})};
-    const auto import{arguments.add<std::string_view>({"--import", "<savefile>", "Patch a savefiles Steam ID and copy it to the games directory"})};
-    const auto output{arguments.add<std::string_view>({"--output", "<path>", "The path to write the generated file to"})};
-    const auto append{arguments.add<int>({"--append", "<slot number>", "Append a slot from one savefile to another. '--from' needs to be set"})};
+    auto targetPath{arguments.add<std::string_view>({"--to", "<savefile>", "The path to the savefile to edit, refered to as the target path. Note that this file will not get overwritten unless '--write' is set. By default the file from Steam is used"})};
+    auto sourcePath{arguments.add<std::string_view>({"--from", "<savefile>", "The path to the savefile to copy from when appending"})};
+    auto read{arguments.add<std::string_view>({"--read", "<savefile>", "Print the slots of a savefile"})};
+    auto import{arguments.add<std::string_view>({"--import", "<savefile>", "Patch a savefiles Steam ID and copy it to Steams directory to make it available to the game"})};
+    auto output{arguments.add<std::string_view>({"--output", "<path>", "The path to write the generated file to after editing"})};
+    auto append{arguments.add<int>({"--append", "<slot number>", "Append a slot from the save file set with '--from' to the save file set with '--to'"})};
+    auto slot{arguments.add<int>({"--slot", "<slot number>", "The slot to use when editing the save file"})};
     auto steamId{arguments.add<u64>({"--steamid", "<Steam ID>", "Set a Steam ID to patch the savefile with, in case it cannot be detected automatically"})};
     // TODO: restore argument
-    const auto write{arguments.add<bool>({"--write", "Write the generated file to Steams Elden Ring folder to make it available to the game. A backup of the existing savefile gets written to '~/.config/er-saveutils/backup'"})};
-    auto rename{arguments.add<std::tuple<int, std::string_view>>({"--rename", "<slot number> <name>", "Rename a slot in the savefile"})};
+    auto rename{arguments.add<std::string_view>({"--rename", "<name>", "Rename a slot in the savefile. '--slot' must be set"})};
     auto listItems{arguments.add<int>({"--list-items", "<slot number>", "List all items in the given slot"})};
-    auto setItem{arguments.add<std::tuple<int, std::string_view, u32>>({"--set-item", "<slot number> <item name> <item count>", "Set the number of a given item in a slot. To see a list of all available items, use --list-items"})};
+    auto setItem{arguments.add<std::pair<std::string_view, u32>>({"--set-item", "<item name> <item count>", "Set the number of a given item in the slot set with '--slot`. To see a list of all available items, use --list-items"})};
+    auto write{arguments.add<bool>({"--write", "Write the generated file to Steams Elden Ring folder to make it available to the game. A backup of the existing savefile gets written to '~/.config/er-saveutils/backup'"})};
     auto help{arguments.add<bool>({"--help", "Print this help message"})};
     auto version{arguments.add<bool>({"--version", "Print the version of the program"})};
     arguments.checkForUnexpected();
@@ -76,11 +77,14 @@ int main(int argc, char **argv) {
     auto targetSave{SaveFile(std::filesystem::path{targetPath.value})};
 
     if (rename.set) {
-        const auto [slotIndex, name] = rename.value;
-        fmt::print("Renaming slot {} to '{}'\n", slotIndex, name);
-        if (!targetSave.slots[slotIndex].active)
-            throw exception("Slot {} is not active while renaming", slotIndex);
-        targetSave.renameSlot(slotIndex, name);
+        auto name{rename.value};
+        if (!slot.set)
+            throw exception("--rename requires --slot to be set to the slot to rename");
+
+        fmt::print("Renaming slot {} to '{}'\n", slot.value, name);
+        if (!targetSave.slots[slot.value].active)
+            throw exception("Slot {} is not active while renaming", slot.value);
+        targetSave.renameSlot(slot.value, name);
     }
 
     if (import.set)
@@ -96,21 +100,23 @@ int main(int argc, char **argv) {
 
     if (append.set)
         fmt::print("Savefile to copy to:\n");
-    if (listItems.set || setItem.set)
+    if (listItems.set)
         fmt::print("Slots:\n", listItems.value);
 
     printActiveCharacters(targetSave.slots);
 
     if (setItem.set) {
         Items items{};
-        const auto [slotIndex, itemName, itemCount] = setItem.value;
+        const auto [itemName, itemCount] = setItem.value;
         auto item{items[itemName]};
-        fmt::print("Setting item {} to {} in slot {}\n", itemName, itemCount, slotIndex);
-        if (!targetSave.slots[slotIndex].active)
-            throw exception("Slot {} is not active while setting item", slotIndex);
-        if (targetSave.getItem(slotIndex, item) == 0)
-            throw exception("Could not set item {} to {} in slot {} as it is not present in the savefile", itemName, itemCount, slotIndex);
-        targetSave.setItem(slotIndex, item, itemCount);
+        if (!slot.set)
+            throw exception("--set-item requires --slot to be set to the slot to edit");
+        if (!targetSave.slots[slot.value].active)
+            throw exception("Slot {} is not active while setting item", slot.value);
+        if (targetSave.getItem(slot.value, item) == 0)
+            throw exception("Could not set item {} to {} in slot {} as it is not present in the savefile. At least one sample must be in the inventory", itemName, itemCount, slot.value);
+        fmt::print("Setting {} to {} in slot {}\n", itemName, itemCount, slot.value);
+        targetSave.setItem(slot.value, item, itemCount);
     }
 
     if (listItems.set) {

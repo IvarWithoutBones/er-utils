@@ -33,13 +33,13 @@ int main(int argc, char **argv) {
     auto append{arguments.add<int>({"--append", "<slot number>", "Append a slot from the save file set with '--from' to the save file set with '--to'"})};
     auto slot{arguments.add<int>({"--slot", "<slot number>", "The slot to use when editing the save file"})};
     auto steamId{arguments.add<u64>({"--steamid", "<Steam ID>", "Set a Steam ID to patch the savefile with, in case it cannot be detected automatically"})};
-    // TODO: restore argument
     auto rename{arguments.add<std::string_view>({"--rename", "<name>", "Rename a slot in the savefile. '--slot' must be set"})};
-    auto listItems{arguments.add<int>({"--list-items", "<slot number>", "List all items in the given slot"})};
+    auto listItems{arguments.add<bool>({"--list-items", "List all items in the slot from '--slot'"})};
     auto setItem{arguments.add<std::pair<std::string_view, u32>>({"--set-item", "<item name> <item count>", "Set the number of a given item in the slot set with '--slot`. To see a list of all available items, use --list-items"})};
-    auto write{arguments.add<bool>({"--write", "Write the generated file to Steams Elden Ring folder to make it available to the game. A backup of the existing savefile gets written to '~/.config/er-saveutils/backup'"})};
     auto help{arguments.add<bool>({"--help", "Print this help message"})};
     auto version{arguments.add<bool>({"--version", "Print the version of the program"})};
+    // TODO: restore argument
+    auto write{arguments.add<bool>({"--write", "Write the generated file to Steams Elden Ring folder to make it available to the game. A backup of the existing savefile gets written to '~/.config/er-saveutils/backup'"})};
     arguments.checkForUnexpected();
 
     if (help.set) {
@@ -100,8 +100,6 @@ int main(int argc, char **argv) {
 
     if (append.set)
         fmt::print("Savefile to copy to:\n");
-    if (listItems.set)
-        fmt::print("Slots:\n", listItems.value);
 
     printActiveCharacters(targetSave.slots);
 
@@ -121,11 +119,14 @@ int main(int argc, char **argv) {
 
     if (listItems.set) {
         Items items{};
-        fmt::print("Items in slot {}:\n", listItems.value);
-        if (!targetSave.slots[listItems.value].active)
-            throw exception("Slot {} is not active while listing items", listItems.value);
+        fmt::print("Items in slot {}:\n", slot.value);
+        if (!slot.set)
+            throw exception("--list-items requires --slot to be set to the slot to list");
+        if (!targetSave.slots[slot.value].active)
+            throw exception("Slot {} is not active while listing items", slot.value);
         for (auto item : items)
-            fmt::print("    {}: {}\n", item.first, targetSave.getItem(listItems.value, item.second));
+            if (targetSave.getItem(slot.value, item.second) != 0)
+                fmt::print("    {}: {}\n", item.first, targetSave.getItem(slot.value, item.second));
     }
 
     if (sourcePath.set) {

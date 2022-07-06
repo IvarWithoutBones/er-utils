@@ -5,11 +5,12 @@
 namespace savepatcher {
 
 struct Item {
-  private:
-    constexpr static std::array<u8, 2> delimiter{0x0, 0xB0};
+    // Sequence in savefile: id groupId 00 B0 amount 00 00 00 ?? ?? 00 00
 
   public:
+    constexpr static std::array<u8, 2> delimiter{0x0, 0xB0};
     const std::array<u8, 4> data;
+
     constexpr Item(u8 id, u8 groupId) : data{id, groupId, delimiter.front(), delimiter.back()} {}
 };
 

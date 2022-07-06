@@ -142,10 +142,34 @@ u32 Character::getItem(SaveSpan data, Item item) const {
 }
 
 void Character::setItem(SaveSpan data, Item item, u32 quantity) const {
+    size_t quantityOffset{};
     auto slot{SlotSection.bytesFrom(data)};
-    const auto itr{std::search(slot.begin(), slot.end(), item.data.begin(), item.data.end())};
-    if (itr != slot.end())
-        slot[(itr - slot.begin()) + item.data.size()] = static_cast<u8>(quantity);
+
+    if (auto itr = std::search(slot.begin(), slot.end(), item.data.begin(), item.data.end()); itr != slot.end())
+        // If the item is already present we can just update the quantity
+        quantityOffset = (itr - slot.begin()) + item.data.size();
+    else {
+        constexpr static auto itemSize{10};
+
+        // If the item isnt already present we need to insert it. This currently works, but for some reason only sometimes
+        for (size_t i{}; i < slot.size(); i++) {
+            // Check if an item exists at the current position
+            if (slot[i] == item.delimiter.front() && slot[i + 1] == item.delimiter.back()) {
+                const auto nextItem{i + itemSize};
+                const auto nextItemEnd{i + (itemSize * 2)};
+                // Check if the 10 bytes after the found item are empty
+                if (std::search_n(slot.begin() + nextItem, slot.begin() + nextItemEnd, itemSize, 0x0) != slot.begin() + nextItemEnd) {
+                    // If yes, copy the requested item into it
+                    std::copy(item.data.begin(), item.data.end(), slot.begin() + nextItem);
+                    quantityOffset = nextItem + item.data.size();
+                    break;
+                } else
+                    i += itemSize;
+            }
+        }
+    }
+
+    slot[quantityOffset] = static_cast<u8>(quantity);
 }
 
 void Character::rename(SaveSpan data, std::string_view newName) const {

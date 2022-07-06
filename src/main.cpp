@@ -110,9 +110,7 @@ int main(int argc, char **argv) {
         if (!slot.set)
             throw exception("--set-item requires --slot to be set to the slot to edit");
         if (!targetSave.slots[slot.value].active)
-            throw exception("Slot {} is not active while setting item", slot.value);
-        if (targetSave.getItem(slot.value, item) == 0)
-            throw exception("Could not set item {} to {} in slot {} as it is not present in the savefile. At least one sample must be in the inventory", itemName, itemCount, slot.value);
+            throw exception("Slot {} is not active while setting item {}", slot.value, itemName);
         fmt::print("Setting {} to {} in slot {}\n", itemName, itemCount, slot.value);
         targetSave.setItem(slot.value, item, itemCount);
     }

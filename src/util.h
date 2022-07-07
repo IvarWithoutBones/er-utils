@@ -52,7 +52,6 @@ struct Section {
 
     /**
      * @brief Get the range of bytes from the given data as an integer
-     * @return A number containing the range of bytes from the given offset. This can be one of u8, u16, u32 or u64
      */
     template <typename T> constexpr T castInteger(const std::span<u8> data) const {
         // clang-format off
@@ -87,9 +86,6 @@ struct Section {
         std::copy(newString.data(), newString.data() + newString.size(), data.begin() + address);
     }
 
-    /**
-     * @brief Get the range of bytes from the given data at the given offset
-     */
     constexpr std::span<u8> bytesFrom(const std::span<u8> data) const {
         if (address > data.size_bytes() || size > data.size_bytes())
             throw exception("Invalid offset range: [{}, {}], size: {}", address, length, data.size_bytes());
@@ -97,69 +93,12 @@ struct Section {
         return data.subspan(address, length - address);
     }
 
-    /**
-     * @brief Get the range of bytes from the given data as a string
-     */
-    std::string charsFrom(const std::span<u8> data) const {
+    std::string_view stringFrom(const std::span<u8> data) const {
         return {reinterpret_cast<const char *>(bytesFrom(data).data()), size};
     }
 };
 
 namespace util {
-
-/**
- * @brief Calculate the MD5 hash of a span of bytes
- */
-const Md5Hash generateMd5(std::span<u8> input);
-
-/**
- * @brief Convert UTF-8 to UTF-16
- */
-void utf8ToUtf16(std::span<u8> chars, std::u16string_view text);
-
-/**
- * @brief Get an environment variable's value
- * @param name The environment variable
- * @param defaultValue The value to return if the variable is not set
- */
-const std::string getEnvironmentVariable(std::string_view name, std::function<std::string()> defaultValue);
-
-const std::string getEnvironmentVariable(std::string_view name, std::string_view defaultValue = "");
-
-/**
- * @brief Get the Steam ID based on the path to the savefile
- */
-u64 getSteamId(std::filesystem::path saveFilePath);
-
-/**
- * @brief Convert a number of seconds to a human-readable timestamp
- */
-const std::string secondsToTimeStamp(const time_t seconds);
-
-/**
- * @brief Get an std::filesystem::path's absolute path, used for logging
- */
-const std::string toAbsolutePath(std::filesystem::path path);
-
-/**
- * @brief The directory to write to at runtime. This gets created if it doesn't exist.
- */
-std::filesystem::path makeDataDirectory();
-
-/**
- * @brief The directory to write a backup of the save file to at runtime. This gets created if it doesn't exist.
- */
-std::filesystem::path makeBackupDirectory();
-
-/**
- * @brief Finds a file in the given directory and its subdirectories
- */
-std::filesystem::path findFileInSubDirectory(std::filesystem::path directory, std::string_view filename);
-
-/**
- * @brief Write the savefile to the backup directory
- */
-std::filesystem::path backupAndRemoveSavefile(std::filesystem::path saveFilePath);
 
 /**
  * @brief Get the amount of digits in a number
@@ -176,7 +115,7 @@ template <class C> constexpr u32 getDigits(C input) {
 /**
  * @brief Replace all occurances of a span inside of another span
  */
-template <typename T, class C> constexpr void replaceAll(std::span<T> data, std::span<T> find, C replace) {
+template <typename T, class C> constexpr void ReplaceAll(std::span<T> data, std::span<T> find, C replace) {
     size_t index{};
     if (find.size_bytes() != replace.size())
         throw exception("Size of find does not match replace");
@@ -191,6 +130,51 @@ template <typename T, class C> constexpr void replaceAll(std::span<T> data, std:
     }
 }
 
+const Md5Hash GenerateMd5(std::span<u8> input);
+
+void Utf8ToUtf16(std::span<u8> chars, std::u16string_view text);
+
+const std::string Utf16ToUtf8String(std::span<u8> text);
+
+const std::string SecondsToTimeStamp(const time_t seconds);
+
+/**
+ * @brief Get an environment variable's value
+ * @param defaultValue The value to return if the variable is not set
+ */
+const std::string GetEnvironmentVariable(std::string_view name, std::function<std::string()> defaultValue);
+
+const std::string GetEnvironmentVariable(std::string_view name, std::string_view defaultValue = "");
+
+/**
+ * @brief Get the Steam ID based on the path to the savefile
+ */
+u64 GetSteamId(std::filesystem::path saveFilePath);
+
+std::filesystem::path FindFileInSubDirectory(std::filesystem::path directory, std::string_view filename);
+
+/**
+ * @brief Get an std::filesystem::path's absolute path, used for logging
+ */
+const std::filesystem::path ToAbsolutePath(std::filesystem::path path);
+
+/**
+ * @brief The directory to write to at runtime
+ */
+std::filesystem::path CreateDataDirectory();
+
+/**
+ * @brief The directory to write a backup of the save file to at runtime
+ */
+std::filesystem::path CreateBackupDirectory();
+
+/**
+ * @brief Copy the savefile to the backup directory
+ */
+std::filesystem::path BackupSavefile(std::filesystem::path saveFilePath);
+
 } // namespace util
+
+using namespace util;
 
 } // namespace savepatcher

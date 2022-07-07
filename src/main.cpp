@@ -9,7 +9,7 @@
 
 using namespace savepatcher;
 
-static void printActiveCharacters(std::vector<Character> &characters) {
+static void printActiveCharacters(std::vector<Slot> &characters) {
     for (auto character : characters)
         if (character.active)
             fmt::print("    slot {}: {}, level {}, played for {}\n", character.slotIndex, character.name, character.level, character.timePlayed);
@@ -22,8 +22,8 @@ static void printUsage(const CommandLineArguments::ArgumentParser &parser) {
 
 int main(int argc, char **argv) {
     CommandLineArguments::ArgumentParser arguments(argc, argv);
-    const std::filesystem::path appDataPath{fmt::format("{}/.steam/steam/steamapps/compatdata/1245620/pfx/drive_c/users/steamuser/AppData/Roaming/EldenRing", util::getEnvironmentVariable("HOME"))};
-    std::string defaultFilePath{util::findFileInSubDirectory(appDataPath, "ER0000.sl2")};
+    const std::filesystem::path appDataPath{fmt::format("{}/.steam/steam/steamapps/compatdata/1245620/pfx/drive_c/users/steamuser/AppData/Roaming/EldenRing", GetEnvironmentVariable("HOME"))};
+    std::string defaultFilePath{FindFileInSubDirectory(appDataPath, "ER0000.sl2")};
 
     auto targetPath{arguments.add<std::string_view>({"--to", "<savefile>", "The path to the savefile to edit, refered to as the target path. Note that this file will not get overwritten unless '--write' is set. By default the file from Steam is used"})};
     auto sourcePath{arguments.add<std::string_view>({"--from", "<savefile>", "The path to the savefile to copy from when appending"})};
@@ -89,10 +89,10 @@ int main(int argc, char **argv) {
 
     if (import.set)
         if (!steamId.set)
-            steamId.value = util::getSteamId(defaultFilePath);
+            steamId.value = GetSteamId(defaultFilePath);
 
     if (import.set || steamId.set) {
-        if (util::getDigits(steamId.value) != 17)
+        if (getDigits(steamId.value) != 17)
             throw exception("Invalid Steam ID: {}", steamId.value);
         fmt::print("Patching '{}' with Steam ID {}\n", targetPath.value, steamId.value);
         targetSave.replaceSteamId(steamId.value);
@@ -152,16 +152,16 @@ int main(int argc, char **argv) {
     if (output.set) {
         const auto path{std::filesystem::path{output.value}};
         targetSave.write(path);
-        fmt::print("Succesfully wrote output to file '{}'\n", util::toAbsolutePath(path));
+        fmt::print("Succesfully wrote output to file '{}'\n", ToAbsolutePath(path).generic_string());
     }
 
     if (write.set || import.set) {
         if (defaultFilePath.empty())
             throw exception("No savefile directory found to write to");
 
-        auto backupDir{util::backupAndRemoveSavefile(defaultFilePath)};
-        fmt::print("Wrote a backup of the original savefile to '{}'\n", util::toAbsolutePath(backupDir));
+        auto backupDir{BackupSavefile(defaultFilePath)};
+        fmt::print("Wrote a backup of the original savefile to '{}'\n", ToAbsolutePath(backupDir).generic_string());
         targetSave.write(defaultFilePath);
-        fmt::print("Wrote generated file to '{}'\n", util::toAbsolutePath(defaultFilePath));
+        fmt::print("Wrote generated file to '{}'\n", ToAbsolutePath(defaultFilePath).generic_string());
     }
 }

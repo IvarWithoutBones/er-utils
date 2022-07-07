@@ -10,24 +10,24 @@ namespace savepatcher {
 /**
  * @brief One of the slots in a save file
  */
-class Character {
+class Slot {
   public:
     const size_t slotIndex; //!< The index of the save slot, each character has a unique slot. This value can range between 0-9
   private:
     /**
      * @brief Used to calculate a target address when copying a character
      */
-    constexpr static const size_t SlotOffset{0x310};
-    constexpr static const size_t SlotHeaderOffset{0x1901D0E};
+    constexpr static const size_t SlotSectionOffset{0x310};
+    constexpr static const size_t SlotHeaderSectionOffset{0x1901D0E};
+    constexpr static const size_t NameSectionSize{0x22};
 
-    constexpr static Section ActiveSection{0x1901D04, 0xA};                              //!< Contains booleans indicating if the character at address + slotIndex is active
-    constexpr static Section NameSection{0x1901D0E, 0x22};                               //!< Contains the name of a character, without slot index parsing
-    const Section SlotSection{ParseSlot(SlotOffset, 0x280000)};                          //!< Contains the save data of the character
-    const Section SlotChecksumSection{ParseSlot(0x300, 0x10)};                           //!< Contains the checksum of the data section
-    const Section SlotHeaderSection{ParseHeader(SlotHeaderOffset, 0x24C)};               //!< Contains the slots header
-    const Section parsedNameSection{ParseHeader(NameSection.address, NameSection.size)}; //!< Contains the name of the character in the current slot
-    const Section LevelSection{ParseHeader(0x1901D30, 0x1)};                             //!< Contains the level of the character
-    const Section SecondsPlayedSection{ParseHeader(0x1901D34, 0x4)};                     //!< Contains the number of seconds played
+    constexpr static Section ActiveSection{0x1901D04, 0xA};                       //!< Contains booleans indicating if the character at address + slotIndex is active
+    const Section SlotSection{ParseSlot(SlotSectionOffset, 0x280000)};            //!< Contains the save data of the character
+    const Section SlotChecksumSection{ParseSlot(0x300, 0x10)};                    //!< Contains the checksum of the data section
+    const Section SlotHeaderSection{ParseHeader(SlotHeaderSectionOffset, 0x24C)}; //!< Contains the slots header
+    const Section NameSection{ParseHeader(0x1901D0E, NameSectionSize)};           //!< Contains the name of a character, without slot index parsing
+    const Section LevelSection{ParseHeader(0x1901D30, 0x1)};                      //!< Contains the level of the character
+    const Section SecondsPlayedSection{ParseHeader(0x1901D34, 0x4)};              //!< Contains the number of seconds played
 
     /**
      * @brief A wrapper around Section that provides the offsets for a save header
@@ -65,7 +65,7 @@ class Character {
     std::string name;       //!< The name of the character
     std::string timePlayed; //!< A timestamp of the characters play time
 
-    constexpr Character(SaveSpan data, size_t slotIndex) : slotIndex{slotIndex}, active{isActive(data, slotIndex)}, level{getLevel(data)}, name{getName(data)}, timePlayed{getTimePlayed(data)} {}
+    constexpr Slot(SaveSpan data, size_t slotIndex) : slotIndex{slotIndex}, active{isActive(data, slotIndex)}, level{getLevel(data)}, name{getName(data)}, timePlayed{getTimePlayed(data)} {}
 
     /**
      * @brief Copy the currently active save slot into the given span
@@ -133,15 +133,15 @@ class SaveFile {
      */
     void replaceSteamId(SaveSpan replaceFrom, u64 newSteamId) const;
 
-    const std::vector<Character> parseSlots(SaveSpan data) const;
+    const std::vector<Slot> parseSlots(SaveSpan data) const;
 
     void refreshSlots();
 
   public:
-    std::vector<Character> slots; //!< The characters in the save file
+    std::vector<Slot> slots; //!< The characters in the save file
 
     SaveFile(std::filesystem::path path) : saveDataContainer{loadFile(path)}, saveData{saveDataContainer}, slots{parseSlots(saveData)} {
-        validateData(saveData, util::toAbsolutePath(path));
+        validateData(saveData, ToAbsolutePath(path).generic_string());
     }
 
     /**

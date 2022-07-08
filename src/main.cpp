@@ -1,6 +1,7 @@
 #include "arguments.h"
 #include "savefile.h"
 #include "util.h"
+#include <fmt/color.h>
 #include <fmt/format.h>
 
 #ifndef VERSION
@@ -9,15 +10,27 @@
 
 using namespace savepatcher;
 
-static void printActiveCharacters(std::vector<Slot> &characters) {
-    for (auto character : characters)
-        if (character.active)
-            fmt::print("    slot {}: {}, level {}, played for {}\n", character.slotIndex, character.name, character.level, character.timePlayed);
+static void printActiveSlots(std::vector<Slot> &characters) {
+    for (auto slot : characters)
+        if (slot.active)
+            fmt::print("    slot {}: {}, level {}, played for {}\n", slot.slotIndex, slot.name, slot.level, slot.timePlayed);
 }
 
-static void printUsage(const CommandLineArguments::ArgumentParser &parser) {
-    const auto [programName, briefUsage, fullUsage] = parser.getUsage();
-    fmt::print("Usage: {} {}\n{}\n", programName, briefUsage, fullUsage);
+static void printUsage(const CommandLineArguments::ArgumentParser &parser, CommandLineArguments::ArgumentBase command = {}) {
+    auto [programName, briefUsage, fullUsage] = parser.getUsage();
+    if (command.notEmpty)
+        fmt::print("usage:\n  {} {} {} {}\n", programName, command.name, command.briefDescription, fmt::format(fg(fmt::color::gray), "# {}", command.description));
+    else
+        fmt::print("usage: {} {}\n    {}", programName, briefUsage, fullUsage);
+
+}
+
+[[noreturn]] static void exitAndShowUsage(const CommandLineArguments::ArgumentParser parser, CommandLineArguments::ArgumentBase command = {}, std::string_view message = "", int exitCode = 0) {
+    if (exitCode != 0)
+        fmt::print("{}: {}\n\n", fmt::format(fg(fmt::color::red), "error"), message);
+    printUsage(parser, command);
+
+    exit(exitCode);
 }
 
 int main(int argc, char **argv) {
@@ -32,8 +45,8 @@ int main(int argc, char **argv) {
     auto output{arguments.add<std::string_view>({"--output", "<path>", "The path to write the generated file to after editing"})};
     auto append{arguments.add<int>({"--append", "<slot number>", "Append a slot from the save file set with '--from' to the save file set with '--to'"})};
     auto slot{arguments.add<int>({"--slot", "<slot number>", "The slot to use when editing the save file"})};
-    auto steamId{arguments.add<u64>({"--steamid", "<Steam ID>", "Set a Steam ID to patch the savefile with, in case it cannot be detected automatically"})};
-    auto rename{arguments.add<std::string_view>({"--rename", "<name>", "Rename a slot in the savefile. '--slot' must be set"})};
+    auto steamId{arguments.add<u64>({"--steamid", "<Steam ID>", "Set a Steam ID to patch the savefile with, in case it cannot be detected automatically. This should be a number with 17 digits"})};
+    auto rename{arguments.add<std::string_view>({"--rename", "<new_name>", "Rename the slot set with '--slot'"})};
     auto listItems{arguments.add<bool>({"--list-items", "List all items in the slot from '--slot'"})};
     auto setItem{arguments.add<std::pair<std::string_view, u32>>({"--set-item", "<item name> <item count>", "Set the number of a given item in the slot set with '--slot`. To see a list of all available items, use --list-items"})};
     auto help{arguments.add<bool>({"--help", "Print this help message"})};
@@ -42,10 +55,8 @@ int main(int argc, char **argv) {
     auto write{arguments.add<bool>({"--write", "Write the generated file to Steams Elden Ring folder to make it available to the game. A backup of the existing savefile gets written to '~/.config/er-saveutils/backup'"})};
     arguments.checkForUnexpected();
 
-    if (help.set) {
-        printUsage(arguments);
-        exit(0);
-    }
+    if (help.set)
+        exitAndShowUsage(arguments);
 
     if (version.set) {
         fmt::print("er-saveutils v{}\n", VERSION);
@@ -56,7 +67,7 @@ int main(int argc, char **argv) {
         const auto path{std::filesystem::path{read.value}};
         auto saveFile{SaveFile{path}};
         fmt::print("Savefile '{}':\n", path.generic_string());
-        printActiveCharacters(saveFile.slots);
+        printActiveSlots(saveFile.slots);
         exit(0);
     }
 
@@ -64,11 +75,8 @@ int main(int argc, char **argv) {
         if (!defaultFilePath.empty()) {
             targetPath.value = defaultFilePath;
             fmt::print("Found savefile at '{}'\n", defaultFilePath);
-        } else {
-            fmt::print("error: Could not find the savefile from Steam, --to is required\n\n");
-            printUsage(arguments);
-            exit(1);
-        }
+        } else
+            exitAndShowUsage(arguments, targetPath, "Could not find the save file in Steams directory, setting --to is required", 1);
     }
 
     if (import.set)
@@ -79,11 +87,11 @@ int main(int argc, char **argv) {
     if (rename.set) {
         auto name{rename.value};
         if (!slot.set)
-            throw exception("--rename requires --slot to be set to the slot to rename");
+            exitAndShowUsage(arguments, rename, "--rename requires --slot to be set", 1);
 
         fmt::print("Renaming slot {} to '{}'\n", slot.value, name);
         if (!targetSave.slots[slot.value].active)
-            throw exception("Slot {} is not active while renaming", slot.value);
+            exitAndShowUsage(arguments, rename, fmt::format("Slot {} is not active while trying to rename", slot.value), 1);
         targetSave.renameSlot(slot.value, name);
     }
 
@@ -93,7 +101,7 @@ int main(int argc, char **argv) {
 
     if (import.set || steamId.set) {
         if (getDigits(steamId.value) != 17)
-            throw exception("Invalid Steam ID: {}", steamId.value);
+            exitAndShowUsage(arguments, steamId, fmt::format("Invalid Steam ID: {}", steamId.value), 1);
         fmt::print("Patching '{}' with Steam ID {}\n", targetPath.value, steamId.value);
         targetSave.replaceSteamId(steamId.value);
     }
@@ -101,16 +109,16 @@ int main(int argc, char **argv) {
     if (append.set)
         fmt::print("Savefile to copy to:\n");
 
-    printActiveCharacters(targetSave.slots);
+    printActiveSlots(targetSave.slots);
 
     if (setItem.set) {
         Items items{};
         const auto [itemName, itemCount] = setItem.value;
         auto item{items[itemName]};
         if (!slot.set)
-            throw exception("--set-item requires --slot to be set to the slot to edit");
+            exitAndShowUsage(arguments, setItem, "--set-item requires --slot to be set", 1);
         if (!targetSave.slots[slot.value].active)
-            throw exception("Slot {} is not active while setting item {}", slot.value, itemName);
+            exitAndShowUsage(arguments, setItem, fmt::format("Slot {} is not active while trying to set an items quantity", slot.value), 1);
         fmt::print("Setting {} to {} in slot {}\n", itemName, itemCount, slot.value);
         targetSave.setItem(slot.value, item, itemCount);
     }
@@ -119,9 +127,9 @@ int main(int argc, char **argv) {
         Items items{};
         fmt::print("Items in slot {}:\n", slot.value);
         if (!slot.set)
-            throw exception("--list-items requires --slot to be set to the slot to list");
+            exitAndShowUsage(arguments, listItems, "--list-items requires --slot to be set", 1);
         if (!targetSave.slots[slot.value].active)
-            throw exception("Slot {} is not active while listing items", slot.value);
+            exitAndShowUsage(arguments, listItems, fmt::format("Slot {} is not active while trying to list items", slot.value), 1);
         for (auto item : items)
             if (targetSave.getItem(slot.value, item.second) != 0)
                 fmt::print("    {}: {}\n", item.first, targetSave.getItem(slot.value, item.second));
@@ -130,23 +138,20 @@ int main(int argc, char **argv) {
     if (sourcePath.set) {
         auto sourceSave{SaveFile(std::filesystem::path{sourcePath.value})};
         fmt::print("Savefile to copy from:\n");
-        printActiveCharacters(sourceSave.slots);
+        printActiveSlots(sourceSave.slots);
 
         if (append.set) {
             if (sourceSave.slots[append.value].active)
                 targetSave.appendSlot(sourceSave, append.value);
             else
-                throw exception("Attempting to append inactive slot {}", append.value);
+                exitAndShowUsage(arguments, append, fmt::format("Slot {} is not active while trying to append", append.value), 1);
         }
-    } else if (append.set) {
-        fmt::print("error: Could not find a savefile, please set one manually with '--from'\n\n");
-        printUsage(arguments);
-        exit(1);
-    }
+    } else if (append.set)
+        exitAndShowUsage(arguments, append, "--append requires --from to be set to the path to the savefile to copy from", 1);
 
     if (append.set) {
         fmt::print("Generated file:\n");
-        printActiveCharacters(targetSave.slots);
+        printActiveSlots(targetSave.slots);
     }
 
     if (output.set) {
@@ -156,8 +161,8 @@ int main(int argc, char **argv) {
     }
 
     if (write.set || import.set) {
-        if (defaultFilePath.empty())
-            throw exception("No savefile directory found to write to");
+        if (defaultFilePath.empty() && !targetPath.set)
+            exitAndShowUsage(arguments, write, "No location known to write to as Steams directory was not found, and '--to' was not set", 1);
 
         auto backupDir{BackupSavefile(defaultFilePath)};
         fmt::print("Wrote a backup of the original savefile to '{}'\n", ToAbsolutePath(backupDir).generic_string());

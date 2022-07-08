@@ -6,6 +6,12 @@ namespace CommandLineArguments {
 using namespace savepatcher; // for exception
 
 struct ArgumentBase {
+  public:
+    bool notEmpty{false};
+    std::string_view name{};
+    std::string_view description{};
+    std::string_view briefDescription{};
+
     constexpr virtual ~ArgumentBase() = default;
     constexpr ArgumentBase() = default;
     constexpr ArgumentBase(const ArgumentBase &) = default;
@@ -14,17 +20,22 @@ struct ArgumentBase {
 /**
  * @brief The container type for static command line arguments
  */
-template <typename Type> struct Argument : ArgumentBase {
-    const std::string_view name{};
-    const std::string_view description;
-    const std::string_view briefDescription;
-    bool set{false};
+template <typename Type> struct Argument : public ArgumentBase {
     Type value{};
+    bool set{};
 
     constexpr Argument() = default;
-    constexpr Argument(std::string_view name) : name(name) {}
-    constexpr Argument(std::string_view name, std::string_view description) : name(name), description(description) {}
-    constexpr Argument(std::string_view name, std::string_view briefDescription, std::string_view description) : name(name), description(description), briefDescription{briefDescription} {}
+    // constexpr Argument(std::string_view name) : name(name) {}
+    constexpr Argument(std::string_view name, std::string_view description) {
+        this->name = name;
+        this->description = description;
+    }
+
+    constexpr Argument(std::string_view name, std::string_view briefDescription, std::string_view description) {
+        this->name = name;
+        this->briefDescription = briefDescription;
+        this->description = description;
+    }
 };
 
 /**
@@ -43,6 +54,12 @@ class ArgumentParser {
      * @brief Append an argument to the argument container and parse it if it is set
      */
     template <typename Type> constexpr void addArgument(Argument<Type> &arg) {
+        arg.notEmpty = true;
+        if (isSet(arg.name)) {
+            parse(arg);
+            arg.set = true;
+        }
+
         // TODO: dont assume formatting like this
         if (!arg.briefDescription.empty())
             briefUsageDescription += fmt::format("{} {} ", arg.name, arg.briefDescription);
@@ -51,11 +68,6 @@ class ArgumentParser {
                 usageDescription += fmt::format("    {} {}: {}\n", arg.name, arg.briefDescription, arg.description);
             else
                 usageDescription += fmt::format("    {}: {}\n", arg.name, arg.description);
-        }
-
-        if (isSet(arg.name)) {
-            parse(arg);
-            arg.set = true;
         }
 
         argumentNames.emplace_back(arg.name);

@@ -27,11 +27,15 @@ struct ItemResult {
 
     ItemResult(ItemResult result, std::string_view name) : name{name}, offset{result.offset}, item{result.item} {}
     ItemResult(ItemResult result, std::string_view name, u32 quanity) : name{name}, offset{result.offset}, item{result.item}, quanity{quanity} {}
+    ItemResult(ItemResult result, u32 quanity) : offset{result.offset}, item{result.item}, quanity{quanity} {}
     ItemResult(size_t offset, Item item) : offset{offset}, item{item} {}
     ItemResult(size_t offset, Item item, u32 quanity) : offset{offset}, item{item}, quanity{quanity} {}
 
     bool operator<(const ItemResult &rhs) {
-        return name < rhs.name;
+        if (name.empty())
+            return quanity < rhs.quanity;
+        else
+            return name < rhs.name;
     }
 };
 

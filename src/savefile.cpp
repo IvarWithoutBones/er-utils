@@ -24,26 +24,25 @@ void Slot::debugListItems(SaveSpan data) {
             ItemResult item{static_cast<size_t>(itr - slot.begin()), {*(itr - 2), *(itr - 1)}};
             const auto group{knownItems.groups.find(item)};
 
-            if (group.found) {
-                if (knownItems.findId(item).empty()) // Ignore items we already know
-                    recognizedGroup.emplace_back(item, group.name, getItemQuantity(data, item.item));
-            } else
-                unknown.emplace_back(item);
+            if (group.found && knownItems.findId(item).empty()) // Ignore items we already know
+                recognizedGroup.emplace_back(item, group.name, getItemQuantity(data, item.item));
+            else
+                unknown.emplace_back(item, getItemQuantity(data, item.item));
         } else if (*(itr + 1) != ItemDelimiter.front()) [[likely]]
             itr++;
     }
 
+    std::sort(recognizedGroup.begin(), recognizedGroup.end());
+    std::sort(unknown.begin(), unknown.end());
+
     fmt::print("unknown items:\n\n");
     for (auto &result : unknown)
-        fmt::print("0x{:06X}: group: {:02X}, id: {:02X}, quanity: {}\n", result.offset, result.item.group, result.item.id, getItemQuantity(data, result.item));
-
+        fmt::print("0x{:06X}: group: {:02X}, id: {:02X}, quanity: {}\n", result.offset, result.item.group, result.item.id, result.quanity);
     if (recognizedGroup.empty())
         return;
-
-    std::sort(recognizedGroup.begin(), recognizedGroup.end());
     fmt::print("\nunknown items with a recognized group:\n\n");
     for (auto &result : recognizedGroup)
-        fmt::print("0x{:06X}: {}, id: {:02X}, quanity: {}\n", result.offset, result.name, result.item.id, getItemQuantity(data, result.item));
+        fmt::print("0x{:06X}: {}, id: {:02X}, quanity: {}\n", result.offset, result.name, result.item.id, result.quanity);
 }
 
 void Slot::recalculateSlotChecksum(SaveSpan data) const {

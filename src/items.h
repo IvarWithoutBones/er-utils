@@ -24,6 +24,7 @@ struct ItemResult {
     size_t offset;
     Item item;
     u32 quanity{};
+    std::vector<size_t> duplicates{};
 
     ItemResult(ItemResult result, std::string_view name) : name{name}, offset{result.offset}, item{result.item} {}
     ItemResult(ItemResult result, std::string_view name, u32 quanity) : name{name}, offset{result.offset}, item{result.item}, quanity{quanity} {}
@@ -36,6 +37,10 @@ struct ItemResult {
             return quanity < rhs.quanity;
         else
             return name < rhs.name;
+    }
+
+    void insertDuplicate(size_t pos) {
+        duplicates.emplace_back(pos);
     }
 };
 

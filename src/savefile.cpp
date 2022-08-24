@@ -15,34 +15,78 @@ void Slot::copy(SaveSpan source, SaveSpan target, size_t targetSlotIndex) const 
 
 void Slot::debugListItems(SaveSpan data) {
     const auto slot{SlotSection.bytesFrom(data)};
-    std::vector<ItemResult> recognizedGroup{};
+    std::vector<ItemResult> recognized{};
     std::vector<ItemResult> unknown{};
-    Items knownItems;
+    Items known;
 
     for (auto itr{slot.begin()}; itr + 1 != slot.end(); itr++) {
         if (*itr == ItemDelimiter.front() && *(itr + 1) == ItemDelimiter.back()) [[unlikely]] {
-            ItemResult item{static_cast<size_t>(itr - slot.begin()), {*(itr - 2), *(itr - 1)}};
-            const auto group{knownItems.groups.find(item)};
+            const ItemResult item{static_cast<size_t>(itr - slot.begin()), {*(itr - 2), *(itr - 1)}};
+            const auto group{known.groups.find(item)};
+            const auto quantity{getItemQuantity(data, item.item)};
+            if (!quantity) // Probably isnt an item
+                continue;
 
-            if (group.found && knownItems.findId(item).empty()) // Ignore items we already know
-                recognizedGroup.emplace_back(item, group.name, getItemQuantity(data, item.item));
+            if (group.found && known.findId(item).empty()) // Ignore items we already know
+                recognized.emplace_back(item, group.name, quantity);
             else
-                unknown.emplace_back(item, getItemQuantity(data, item.item));
+                unknown.emplace_back(item, quantity);
         } else if (*(itr + 1) != ItemDelimiter.front()) [[likely]]
             itr++;
     }
 
-    std::sort(recognizedGroup.begin(), recognizedGroup.end());
+    std::sort(recognized.begin(), recognized.end());
     std::sort(unknown.begin(), unknown.end());
 
-    fmt::print("unknown items:\n\n");
-    for (auto &result : unknown)
-        fmt::print("0x{:06X}: group: {:02X}, id: {:02X}, quanity: {}\n", result.offset, result.item.group, result.item.id, result.quanity);
-    if (recognizedGroup.empty())
-        return;
-    fmt::print("\nunknown items with a recognized group:\n\n");
-    for (auto &result : recognizedGroup)
-        fmt::print("0x{:06X}: {}, id: {:02X}, quanity: {}\n", result.offset, result.name, result.item.id, result.quanity);
+    /**
+        // TODO: this sometimes doesnt find all duplicates, no idea why:
+
+        0x2462B7: group: 34, id: 6C, quanity: 248
+            duplicate at 0x23F1C7
+            duplicate at 0x2198B7
+            duplicate at 0x223267
+            duplicate at 0x21B477
+
+        0x227BC7: group: 34, id: 6C, quanity: 248
+            duplicate at 0x21E8A7
+
+        0x247FD7: group: 34, id: 6C, quanity: 248
+    */
+    for (auto checking{unknown.begin()}; checking + 1 != unknown.end(); checking++) {
+        for (auto pos{checking}; pos != unknown.end(); pos++) {
+            auto duplicate{std::find_if(pos, unknown.end(), [&checking](const ItemResult &cmp) {
+                if (cmp.item.group == checking->item.group && cmp.item.id == checking->item.id && checking->quanity == cmp.quanity)
+                    return true;
+                return false;
+            })};
+
+            if (duplicate == unknown.end())
+                break;
+
+            checking->insertDuplicate(duplicate->offset);
+            unknown.erase(duplicate);
+        }
+    }
+
+    if (!unknown.empty()) {
+        fmt::print("found {} unique unknown items:\n\n", unknown.size());
+        for (auto &result : unknown) {
+            if (!result.duplicates.empty())
+                fmt::print("\n");
+            fmt::print("0x{:06X}: group: {:02X}, id: {:02X}, quanity: {}\n", result.offset, result.item.group, result.item.id, result.quanity);
+            if (!result.duplicates.empty()) {
+                for (auto &dupe : result.duplicates)
+                    fmt::print("    duplicate at 0x{:06X}\n", dupe);
+                fmt::print("\n");
+            }
+        }
+    }
+
+    if (!recognized.empty()) {
+        fmt::print("\nfound {} unknown items with a recognized group:\n\n", recognized.size());
+        for (auto &result : recognized)
+            fmt::print("0x{:06X}: {}, id: {:02X}, quanity: {}\n", result.offset, result.name, result.item.id, result.quanity);
+    }
 }
 
 void Slot::recalculateSlotChecksum(SaveSpan data) const {

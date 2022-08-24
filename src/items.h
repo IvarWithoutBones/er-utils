@@ -1,59 +1,116 @@
 #include "util.h"
 #include <array>
+#include <list>
 #include <map>
 
 namespace savepatcher {
 
+constexpr static u8 ItemSize = 4;
+constexpr static std::array<u8, 2> ItemDelimiter{0x0, 0xB0};
+
+// Sequence in savefile: id groupId 00 B0 amount 00 00 00 ?? ?? 00 00
 struct Item {
-    // Sequence in savefile: id groupId 00 B0 amount 00 00 00 ?? ?? 00 00
-
   public:
-    constexpr static std::array<u8, 2> delimiter{0x0, 0xB0};
-    const std::array<u8, 4> data;
+    u8 id{};
+    u8 group{};
+    std::array<u8, ItemSize> data;
 
-    constexpr Item(u8 id, u8 groupId) : data{id, groupId, delimiter.front(), delimiter.back()} {}
+    constexpr Item(u8 id, u8 groupId) : id{id}, group{groupId}, data{id, groupId, ItemDelimiter.front(), ItemDelimiter.back()} {}
+    constexpr Item() : data{0, 0, ItemDelimiter.front(), ItemDelimiter.back()} {}
 };
 
+struct ItemResult {
+    std::string_view name{};
+    size_t offset;
+    Item item;
+    u32 quanity{};
+
+    ItemResult(ItemResult result, std::string_view name) : name{name}, offset{result.offset}, item{result.item} {}
+    ItemResult(ItemResult result, std::string_view name, u32 quanity) : name{name}, offset{result.offset}, item{result.item}, quanity{quanity} {}
+    ItemResult(size_t offset, Item item) : offset{offset}, item{item} {}
+    ItemResult(size_t offset, Item item, u32 quanity) : offset{offset}, item{item}, quanity{quanity} {}
+
+    bool operator<(const ItemResult &rhs) {
+        return name < rhs.name;
+    }
+};
+
+struct ItemGroup {
+    std::string_view name;
+    u8 id;
+    bool found{true};
+
+    ItemGroup(std::string_view name, u8 id) : name{name}, id{id} {}
+    ItemGroup(bool found) : found{found} {}
+};
+
+struct ItemGroups {
+  private:
+    // clang-format off
+    std::list<ItemGroup> groups{
+        {"Rune", 0xB},
+        {"SmithingStone", 0x27},
+        {"FowlFoot", 0x4},
+        {"CraftingMaterial", 0x51},
+        {"Glovewort", 0x2A},
+        {"BeastBone", 0x3B}
+    };
+    // clang-format on
+
+  public:
+    auto operator[](std::string name) {
+        const auto result{std::find_if(groups.begin(), groups.end(), [&name](const ItemGroup &v) { return v.name == name; })};
+        if (result != groups.end())
+            return *result;
+        throw exception("Could not find item group {}", name);
+    }
+
+    ItemGroup find(ItemResult item) {
+        const auto result{std::find_if(groups.begin(), groups.end(), [item](const ItemGroup &v) { return v.id == item.item.group; })};
+        if (result != groups.end())
+            return *result;
+        return {false};
+    }
+};
+
+// TODO: make this a struct rather than a pair. This kinda sucks.
 using ItemList = std::map<std::string, Item>;
-using ItemGroup = u8;
 
 /**
  * @brief A map of items containting data that can be searched and replaced
  */
 class Items : public ItemList {
-  private:
-    constexpr static ItemGroup Rune{0xB};
-    constexpr static ItemGroup SmithingStone{0x27};
-    constexpr static ItemGroup FowlFoot{0x4};
-    constexpr static ItemGroup CraftingMaterial{0x51};
-    constexpr static ItemGroup Glovewort{0x2A};
-    constexpr static ItemGroup BeastBone{0x3B};
+  public:
+    ItemGroups groups{};
 
-    template <ItemGroup Group> const Item item(u8 id) const {
-        return Item{id, Group};
+  private:
+    const Item item(ItemGroup group, u8 id) const {
+        return Item{id, group.id};
     }
 
-    template <ItemGroup Group, u8 amount> void itemSequence(std::string name, u8 start) {
+    void itemSequence(ItemGroup group, std::string name, u8 start, u8 amount) {
         for (u8 itr{}; itr < amount; itr++)
-            this->try_emplace(fmt::format("{}-{}", name, itr + 1), Item(start + itr, Group));
+            this->try_emplace(fmt::format("{}-{}", name, itr + 1), Item(start + itr, group.id));
     }
 
     // clang-format off
     ItemList initialItems{
-        {"lords-rune", item<Rune>(0x67)},
-        {"gold-pickled-fowl-foot", item<FowlFoot>(0xB0)},
-        {"silver-pickled-fowl-foot", item<FowlFoot>(0xA6)},
-        {"thin-beast-bones", item<BeastBone>(0xEC)},
-        {"hefty-beast-bone", item<BeastBone>(0xED)},
-        {"ancient-dragon-smithing-stone", item<SmithingStone>(0x9C)},
-        {"somber-ancient-dragon-smithing-stone", item<SmithingStone>(0xB8)},
-        {"somber-smithing-stone-9", item<SmithingStone>(0xD8)}, // Not in the sequence of other somber stones
-        {"gold-firefly", item<CraftingMaterial>(0x4B)},
-        {"root-resin", item<CraftingMaterial>(0x27)},
-        {"smoldering-butterfly", item<CraftingMaterial>(0x42)},
-        {"mushroom", item<CraftingMaterial>(0x18)},
-        {"melted-mushroom", item<CraftingMaterial>(0x19)},
-        {"golden-centipede", item<CraftingMaterial>(0x54)},
+        {"lords-rune", item(groups["Rune"], 0x67)},
+        {"gold-pickled-fowl-foot", item(groups["FowlFoot"], 0xB0)},
+        {"silver-pickled-fowl-foot", item(groups["FowlFoot"], 0xA6)},
+        {"thin-beast-bones", item(groups["BeastBone"], 0xEC)},
+        {"hefty-beast-bone", item(groups["BeastBone"], 0xED)},
+        {"ancient-dragon-smithing-stone", item(groups["SmithingStone"], 0x9C)},
+        {"somber-ancient-dragon-smithing-stone", item(groups["SmithingStone"], 0xB8)},
+        {"somber-smithing-stone-9", item(groups["SmithingStone"], 0xD8)}, // Not in the sequence of other somber stones
+        {"gold-firefly", item(groups["CraftingMaterial"], 0x4B)},
+        {"root-resin", item(groups["CraftingMaterial"], 0x27)},
+        {"smoldering-butterfly", item(groups["CraftingMaterial"], 0x42)},
+        {"mushroom", item(groups["CraftingMaterial"], 0x18)},
+        {"melted-mushroom", item(groups["CraftingMaterial"], 0x19)},
+        {"golden-centipede", item(groups["CraftingMaterial"], 0x54)},
+
+        // Unknown groups
         {"flight-pinion", Item(0xD4, 0x3A)},
         {"rune-arc", Item(0xBE, 0x0)},
         {"larval-tear", Item(0xF9, 0x1F)},
@@ -63,24 +120,24 @@ class Items : public ItemList {
     // clang-format on
 
     void goldenRunes() {
-        itemSequence<Rune, 12>("golden-rune", 0x54);
+        itemSequence(groups["Rune"], "golden-rune", 0x54, 14);
     }
 
     void smithingStones() {
         // TODO: smithing stone 8 is not in the sequence
-        itemSequence<SmithingStone, 7>("smithing-stone", 0x74);
+        itemSequence(groups["SmithingStone"], "smithing-stone", 0x74, 7);
     }
 
     void somberSmithingStones() {
-        itemSequence<SmithingStone, 9>("somber-smithing-stone", 0xB0);
+        itemSequence(groups["SmithingStone"], "somber-smithing-stone", 0xB0, 9);
     }
 
     void graveGloveworts() {
-        itemSequence<Glovewort, 9>("grave-glovewort", 0x94);
+        itemSequence(groups["Glovewort"], "grave-glovewort", 0x94, 9);
     }
 
     void ghostGloveworts() {
-        itemSequence<Glovewort, 9>("ghost-glovewort", 0x9E);
+        itemSequence(groups["Glovewort"], "ghost-glovewort", 0x9E, 9);
     }
 
   public:
@@ -98,6 +155,13 @@ class Items : public ItemList {
         if (this->find(name.data()) != this->end())
             return this->at(name.data());
         throw exception("Unknown item '{}'", name);
+    }
+
+    const std::string findId(ItemResult item) {
+        const auto result{std::find_if(this->begin(), this->end(), [item](const auto &v) { return v.second.id == item.item.id; })};
+        if (result != this->end())
+            return result->first;
+        return {};
     }
 };
 

@@ -81,14 +81,13 @@ class Slot {
     void recalculateSlotChecksum(SaveSpan data) const;
 
     /**
-     * @brief Get the quanity of an item
+     * @brief List all items that could not yet be properly parsed
      */
-    u32 getItem(SaveSpan data, Item item) const;
+    void debugListItems(SaveSpan data);
 
-    /**
-     * @brief Set the quantity of an item
-     */
-    void setItem(SaveSpan data, Item item, u32 quantity) const;
+    u32 getItemQuantity(SaveSpan data, Item item) const;
+
+    void setItemQuantity(SaveSpan data, Item item, u32 quantity) const;
 
     void setActive(SaveSpan data, bool active) const;
 
@@ -143,6 +142,8 @@ class SaveFile {
     SaveFile(std::filesystem::path path) : saveDataContainer{loadFile(path)}, saveData{saveDataContainer}, slots{parseSlots(saveData)} {
         validateData(saveData, ToAbsolutePath(path).generic_string());
     }
+
+    void debugListItems(u8 slotIndex);
 
     /**
      * @brief Write the patched save data to a file

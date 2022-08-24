@@ -13,6 +13,39 @@ void Slot::copy(SaveSpan source, SaveSpan target, size_t targetSlotIndex) const 
     targetHeaderSection.replace(target, SlotHeaderSection.bytesFrom(source));
 }
 
+void Slot::debugListItems(SaveSpan data) {
+    const auto slot{SlotSection.bytesFrom(data)};
+    std::vector<ItemResult> recognizedGroup{};
+    std::vector<ItemResult> unknown{};
+    Items knownItems;
+
+    for (auto itr{slot.begin()}; itr + 1 != slot.end(); itr++) {
+        if (*itr == ItemDelimiter.front() && *(itr + 1) == ItemDelimiter.back()) [[unlikely]] {
+            ItemResult item{static_cast<size_t>(itr - slot.begin()), {*(itr - 2), *(itr - 1)}};
+            const auto group{knownItems.groups.find(item)};
+
+            if (group.found) {
+                if (knownItems.findId(item).empty()) // Ignore items we already know
+                    recognizedGroup.emplace_back(item, group.name, getItemQuantity(data, item.item));
+            } else
+                unknown.emplace_back(item);
+        } else if (*(itr + 1) != ItemDelimiter.front()) [[likely]]
+            itr++;
+    }
+
+    fmt::print("unknown items:\n\n");
+    for (auto &result : unknown)
+        fmt::print("0x{:06X}: group: {:02X}, id: {:02X}, quanity: {}\n", result.offset, result.item.group, result.item.id, getItemQuantity(data, result.item));
+
+    if (recognizedGroup.empty())
+        return;
+
+    std::sort(recognizedGroup.begin(), recognizedGroup.end());
+    fmt::print("\nunknown items with a recognized group:\n\n");
+    for (auto &result : recognizedGroup)
+        fmt::print("0x{:06X}: {}, id: {:02X}, quanity: {}\n", result.offset, result.name, result.item.id, getItemQuantity(data, result.item));
+}
+
 void Slot::recalculateSlotChecksum(SaveSpan data) const {
     auto hash{GenerateMd5(SlotSection.bytesFrom(data))};
     SlotChecksumSection.replace(data, hash);
@@ -25,13 +58,13 @@ void Slot::rename(SaveSpan data, std::string_view newName) const {
     ReplaceAll<u8>(data, NameSection.bytesFrom(data), convertedName);
 }
 
-u32 Slot::getItem(SaveSpan data, Item item) const {
+u32 Slot::getItemQuantity(SaveSpan data, Item item) const {
     auto slot{SlotSection.bytesFrom(data)};
     const auto itr{std::search(slot.begin(), slot.end(), item.data.begin(), item.data.end())};
     return (itr != slot.end()) ? slot[itr - slot.begin() + item.data.size()] : 0;
 }
 
-void Slot::setItem(SaveSpan data, Item item, u32 quantity) const {
+void Slot::setItemQuantity(SaveSpan data, Item item, u32 quantity) const {
     constexpr static auto itemSize{10};
     auto slot{SlotSection.bytesFrom(data)};
     size_t quantityOffset{};
@@ -43,7 +76,7 @@ void Slot::setItem(SaveSpan data, Item item, u32 quantity) const {
         // Otherwise we need to insert it. This currently works, but only for a few items.
         for (size_t i{}; i < slot.size(); i++) {
             // Check if an item exists at the current position
-            if (slot[i] == item.delimiter.front() && slot[i + 1] == item.delimiter.back()) {
+            if (slot[i] == ItemDelimiter.front() && slot[i + 1] == ItemDelimiter.back()) {
                 const auto nextItem{i + itemSize};
                 const auto nextItemEnd{i + (itemSize * 2)};
                 // Check if the space after the found item is empty
@@ -90,6 +123,10 @@ void SaveFile::validateData(SaveSpan data, std::string_view target) const {
 
 u64 SaveFile::steamId() const {
     return SteamIdSection.castInteger<u64>(saveData);
+}
+
+void SaveFile::debugListItems(u8 slotIndex) {
+    slots[slotIndex].debugListItems(saveData);
 }
 
 std::vector<u8> SaveFile::loadFile(std::filesystem::path path) const {
@@ -193,11 +230,11 @@ void SaveFile::setSlotActivity(size_t slotIndex, bool active) {
 }
 
 u32 SaveFile::getItem(size_t slot, Item item) const {
-    return slots[slot].getItem(saveData, item);
+    return slots[slot].getItemQuantity(saveData, item);
 }
 
 void SaveFile::setItem(size_t slot, Item item, u32 quantity) const {
-    slots[slot].setItem(saveData, item, quantity);
+    slots[slot].setItemQuantity(saveData, item, quantity);
 }
 
 }; // namespace savepatcher

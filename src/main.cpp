@@ -40,14 +40,14 @@ int main(int argc, char **argv) {
 
     auto targetPath{arguments.add<std::string_view>({"--to", "<savefile>", "The path to the savefile to edit, refered to as the target path. Note that this file will not get overwritten unless '--write' is set. By default the file from Steam is used"})};
     auto sourcePath{arguments.add<std::string_view>({"--from", "<savefile>", "The path to the savefile to copy from when appending"})};
-    auto read{arguments.add<std::string_view>({"--read", "<savefile>", "Print the slots of a savefile"})};
     auto import{arguments.add<std::string_view>({"--import", "<savefile>", "Patch a savefiles Steam ID and copy it to Steams directory to make it available to the game"})};
     auto output{arguments.add<std::string_view>({"--output", "<path>", "The path to write the generated file to after editing"})};
     auto append{arguments.add<int>({"--append", "<slot number>", "Append a slot from the save file set with '--from' to the save file set with '--to'"})};
-    auto slot{arguments.add<int>({"--slot", "<slot number>", "The slot to use when editing the save file"})};
+    auto slot{arguments.add<u8>({"--slot", "<slot number>", "The slot to use when editing the save file"})};
     auto steamId{arguments.add<u64>({"--steamid", "<Steam ID>", "Set a Steam ID to patch the savefile with, in case it cannot be detected automatically. This should be a number with 17 digits"})};
     auto rename{arguments.add<std::string_view>({"--rename", "<new_name>", "Rename the slot set with '--slot'"})};
     auto listItems{arguments.add<bool>({"--list-items", "List all items in the slot from '--slot'"})};
+    auto debugListItems{arguments.add<bool>({"--debug-list-items", "List all the items that are not yet recognized"})};
     auto setItem{arguments.add<std::pair<std::string_view, u32>>({"--set-item", "<item name> <item count>", "Set the number of a given item in the slot set with '--slot`. To see a list of all available items, use --list-items"})};
     auto help{arguments.add<bool>({"--help", "Print this help message"})};
     auto version{arguments.add<bool>({"--version", "Print the version of the program"})};
@@ -63,14 +63,6 @@ int main(int argc, char **argv) {
         exit(0);
     }
 
-    if (read.set) {
-        const auto path{std::filesystem::path{read.value}};
-        auto saveFile{SaveFile{path}};
-        fmt::print("Savefile '{}':\n", path.generic_string());
-        printActiveSlots(saveFile.slots);
-        exit(0);
-    }
-
     if (!targetPath.set && !import.set) {
         if (!defaultFilePath.empty()) {
             targetPath.value = defaultFilePath;
@@ -83,6 +75,12 @@ int main(int argc, char **argv) {
         targetPath.value = import.value;
 
     auto targetSave{SaveFile(std::filesystem::path{targetPath.value})};
+
+    if (debugListItems.set) {
+        if (!slot.set)
+            exitAndShowUsage(arguments, debugListItems, "--debug-list-items requires --slot to be set", 1);
+        targetSave.debugListItems(slot.value);
+    }
 
     if (rename.set) {
         auto name{rename.value};

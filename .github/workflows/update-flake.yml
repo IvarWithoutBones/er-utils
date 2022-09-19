@@ -19,7 +19,7 @@ jobs:
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
 
       - name: Update flake.lock
-        uses: DeterminateSystems/update-flake-lock@v10
+        uses: DeterminateSystems/update-flake-lock@v14
         with:
           pr-title: "Update flakes lock"
           pr-labels: ci

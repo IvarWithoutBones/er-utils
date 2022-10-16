@@ -30,8 +30,8 @@ rec {
           ];
 
           buildInputs = [
-            fmt_8
-            openssl
+            fmt_latest
+            openssl_1_1
           ];
 
           installCheckPhase = ''

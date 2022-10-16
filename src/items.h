@@ -118,6 +118,12 @@ class Items : public ItemList {
         {"mushroom", item(groups["CraftingMaterial"], 0x18)},
         {"melted-mushroom", item(groups["CraftingMaterial"], 0x19)},
         {"golden-centipede", item(groups["CraftingMaterial"], 0x54)},
+        {"glintstone-firefly", item(groups["CraftingMaterial"], 0x4C)},
+        {"cracked-crystal", item(groups["CraftingMaterial"], 0x2C)},
+        {"volcanic-stone", item(groups["CraftingMaterial"], 0x72)},
+        {"crystal-cave-moss", item(groups["CraftingMaterial"], 0x6A)},
+        {"budding-cave-moss", item(groups["CraftingMaterial"], 0x69)},
+        {"sanctuary-stone", item(groups["CraftingMaterial"], 0x3B)},
 
         // Unknown groups
         {"flight-pinion", Item(0xD4, 0x3A)},
@@ -129,16 +135,19 @@ class Items : public ItemList {
     // clang-format on
 
     void goldenRunes() {
-        itemSequence(groups["Rune"], "golden-rune", 0x54, 14);
+        itemSequence(groups["Rune"], "golden-rune", 0x54, 9);
+    }
+
+    void herosRunes() {
+        itemSequence(groups["Rune"], "heros-rune", 0x5D, 5);
     }
 
     void smithingStones() {
-        // TODO: smithing stone 8 is not in the sequence
-        itemSequence(groups["SmithingStone"], "smithing-stone", 0x74, 7);
+        itemSequence(groups["SmithingStone"], "smithing-stone", 0x74, 8);
     }
 
     void somberSmithingStones() {
-        itemSequence(groups["SmithingStone"], "somber-smithing-stone", 0xB0, 9);
+        itemSequence(groups["SmithingStone"], "somber-smithing-stone", 0xB0, 8);
     }
 
     void graveGloveworts() {
@@ -156,6 +165,7 @@ class Items : public ItemList {
         graveGloveworts();
         ghostGloveworts();
         smithingStones();
+        herosRunes();
         somberSmithingStones();
         this->merge(initialItems);
     }

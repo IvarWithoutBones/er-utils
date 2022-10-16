@@ -19,7 +19,7 @@ void Slot::debugListItems(SaveSpan data) {
     std::vector<ItemResult> unknown{};
     Items known;
 
-    for (auto itr{slot.begin()}; itr + 1 != slot.end(); itr++) {
+    for (auto itr{slot.begin()}; itr + 2 != slot.end(); itr++) {
         if (*itr == ItemDelimiter.front() && *(itr + 1) == ItemDelimiter.back()) [[unlikely]] {
             const ItemResult item{static_cast<size_t>(itr - slot.begin()), {*(itr - 2), *(itr - 1)}};
             const auto group{known.groups.find(item)};
@@ -38,22 +38,9 @@ void Slot::debugListItems(SaveSpan data) {
     std::sort(recognized.begin(), recognized.end());
     std::sort(unknown.begin(), unknown.end());
 
-    /**
-        // TODO: this sometimes doesnt find all duplicates, no idea why:
-
-        0x2462B7: group: 34, id: 6C, quanity: 248
-            duplicate at 0x23F1C7
-            duplicate at 0x2198B7
-            duplicate at 0x223267
-            duplicate at 0x21B477
-
-        0x227BC7: group: 34, id: 6C, quanity: 248
-            duplicate at 0x21E8A7
-
-        0x247FD7: group: 34, id: 6C, quanity: 248
-    */
-    for (auto checking{unknown.begin()}; checking + 1 != unknown.end(); checking++) {
-        for (auto pos{checking}; pos != unknown.end(); pos++) {
+    // TODO: this sometimes doesnt find all duplicates, no idea why
+    for (auto checking{unknown.begin()}; checking != unknown.end(); checking++) {
+        for (auto pos{checking}; pos + 1 != unknown.end(); pos++) {
             auto duplicate{std::find_if(pos, unknown.end(), [&checking](const ItemResult &cmp) {
                 if (cmp.item.group == checking->item.group && cmp.item.id == checking->item.id && checking->quanity == cmp.quanity)
                     return true;

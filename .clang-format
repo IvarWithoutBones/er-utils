@@ -14,11 +14,11 @@ AlignTrailingComments: true
 AllowAllArgumentsOnNextLine: true
 AllowAllConstructorInitializersOnNextLine: true
 AllowAllParametersOfDeclarationOnNextLine: true
-AllowShortEnumsOnASingleLine: true
+AllowShortEnumsOnASingleLine: false
 AllowShortBlocksOnASingleLine: Never
 AllowShortCaseLabelsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: Empty
-AllowShortLambdasOnASingleLine: All
+AllowShortLambdasOnASingleLine: Empty
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false
 AlwaysBreakAfterDefinitionReturnType: None
@@ -95,8 +95,8 @@ IncludeCategories:
 IncludeIsMainRegex: '(Test)?$'
 IncludeIsMainSourceRegex: ''
 IndentAccessModifiers: false
-IndentCaseLabels: false
-IndentCaseBlocks: false
+IndentCaseLabels: true
+IndentCaseBlocks: true
 IndentGotoLabels: true
 IndentPPDirectives: None
 IndentExternBlock: AfterExternBlock

@@ -18,7 +18,8 @@ jobs:
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
 
       - name: Check flake
-        run: nix flake check
+        # An 'packages' entry will get generated for more systems than the derivation supports
+        run: NIXPKGS_ALLOW_UNSUPPORTED_SYSTEM=1 nix flake check --impure
 
       - name: Build
         run: nix build

@@ -92,6 +92,7 @@ class Items : public ItemList {
 
         // Miscellaneous
         {"lords-rune", item(group("Rune"), 0x67)},
+        {"golden-seed", Item(0x1A, 0x27)},
         {"flight-pinion", Item(0xD4, 0x3A)},
         {"rune-arc", Item(0xBE, 0x0)},
         {"larval-tear", Item(0xF9, 0x1F)},

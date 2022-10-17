@@ -4,8 +4,6 @@
 #include <span>
 #include <string_view>
 
-namespace savepatcher {
-
 void Slot::copy(SaveSpan source, SaveSpan target, size_t targetSlotIndex) const {
     const auto targetSlotSection{ParseSlot(SlotSectionOffset, SlotSection.size, targetSlotIndex)};
     const auto targetHeaderSection{ParseHeader(SlotHeaderSectionOffset, SlotHeaderSection.size, targetSlotIndex)};
@@ -15,14 +13,14 @@ void Slot::copy(SaveSpan source, SaveSpan target, size_t targetSlotIndex) const 
 
 void Slot::debugListItems(SaveSpan data) {
     const auto slot{SlotSection.bytesFrom(data)};
-    std::vector<ItemResult> recognized{};
-    std::vector<ItemResult> unknown{};
-    Items known;
+    std::vector<Items::ItemResult> recognized{};
+    std::vector<Items::ItemResult> unknown{};
+    Items::Items known;
 
     for (auto itr{slot.begin()}; itr + 2 != slot.end(); itr++) {
-        if (*itr == ItemDelimiter.front() && *(itr + 1) == ItemDelimiter.back()) [[unlikely]] {
-            const ItemResult item{static_cast<size_t>(itr - slot.begin()), {*(itr - 2), *(itr - 1)}};
-            const auto group{known.groups.find(item)};
+        if (*itr == Items::ItemDelimiter.front() && *(itr + 1) == Items::ItemDelimiter.back()) [[unlikely]] {
+            const Items::ItemResult item{static_cast<size_t>(itr - slot.begin()), {*(itr - 2), *(itr - 1)}};
+            const auto group{known.hasGroup(item)};
             const auto quantity{getItemQuantity(data, item.item)};
             if (!quantity) // Probably isnt an item
                 continue;
@@ -31,7 +29,7 @@ void Slot::debugListItems(SaveSpan data) {
                 recognized.emplace_back(item, group.name, quantity);
             else
                 unknown.emplace_back(item, quantity);
-        } else if (*(itr + 1) != ItemDelimiter.front()) [[likely]]
+        } else if (*(itr + 1) != Items::ItemDelimiter.front()) [[likely]]
             itr++;
     }
 
@@ -41,7 +39,7 @@ void Slot::debugListItems(SaveSpan data) {
     // TODO: this sometimes doesnt find all duplicates, no idea why
     for (auto checking{unknown.begin()}; checking != unknown.end(); checking++) {
         for (auto pos{checking}; pos + 1 != unknown.end(); pos++) {
-            auto duplicate{std::find_if(pos, unknown.end(), [&checking](const ItemResult &cmp) {
+            auto duplicate{std::find_if(pos, unknown.end(), [&checking](const Items::ItemResult &cmp) {
                 if (cmp.item.group == checking->item.group && cmp.item.id == checking->item.id && checking->quanity == cmp.quanity)
                     return true;
                 return false;
@@ -77,24 +75,24 @@ void Slot::debugListItems(SaveSpan data) {
 }
 
 void Slot::recalculateSlotChecksum(SaveSpan data) const {
-    auto hash{GenerateMd5(SlotSection.bytesFrom(data))};
+    auto hash{util::GenerateMd5(SlotSection.bytesFrom(data))};
     SlotChecksumSection.replace(data, hash);
 }
 
 void Slot::rename(SaveSpan data, std::string_view newName) const {
     std::array<u8, NameSectionSize> convertedName{};
-    Utf8ToUtf16(convertedName, std::u16string(newName.begin(), newName.end()));
+    util::Utf8ToUtf16(convertedName, std::u16string(newName.begin(), newName.end()));
     // Any characters sharing the same name will get replaced with the new name as of now
-    ReplaceAll<u8>(data, NameSection.bytesFrom(data), convertedName);
+    util::ReplaceAll<u8>(data, NameSection.bytesFrom(data), convertedName);
 }
 
-u32 Slot::getItemQuantity(SaveSpan data, Item item) const {
+u32 Slot::getItemQuantity(SaveSpan data, Items::Item item) const {
     auto slot{SlotSection.bytesFrom(data)};
     const auto itr{std::search(slot.begin(), slot.end(), item.data.begin(), item.data.end())};
     return (itr != slot.end()) ? slot[itr - slot.begin() + item.data.size()] : 0;
 }
 
-void Slot::setItemQuantity(SaveSpan data, Item item, u32 quantity) const {
+void Slot::setItemQuantity(SaveSpan data, Items::Item item, u32 quantity) const {
     constexpr static auto itemSize{10};
     auto slot{SlotSection.bytesFrom(data)};
     size_t quantityOffset{};
@@ -106,7 +104,7 @@ void Slot::setItemQuantity(SaveSpan data, Item item, u32 quantity) const {
         // Otherwise we need to insert it. This currently works, but only for a few items.
         for (size_t i{}; i < slot.size(); i++) {
             // Check if an item exists at the current position
-            if (slot[i] == ItemDelimiter.front() && slot[i + 1] == ItemDelimiter.back()) {
+            if (slot[i] == Items::ItemDelimiter.front() && slot[i + 1] == Items::ItemDelimiter.back()) {
                 const auto nextItem{i + itemSize};
                 const auto nextItemEnd{i + (itemSize * 2)};
                 // Check if the space after the found item is empty
@@ -127,7 +125,7 @@ void Slot::setItemQuantity(SaveSpan data, Item item, u32 quantity) const {
 }
 
 std::string Slot::getName(SaveSpan data) const {
-    return Utf16ToUtf8String(NameSection.bytesFrom(data));
+    return util::Utf16ToUtf8String(NameSection.bytesFrom(data));
 }
 
 void Slot::setActive(SaveSpan data, bool value) const {
@@ -135,7 +133,7 @@ void Slot::setActive(SaveSpan data, bool value) const {
 }
 
 std::string Slot::getTimePlayed(SaveSpan data) const {
-    return SecondsToTimeStamp(SecondsPlayedSection.castInteger<u32>(data));
+    return util::SecondsToTimeStamp(SecondsPlayedSection.castInteger<u32>(data));
 }
 
 u64 Slot::getLevel(SaveSpan data) const {
@@ -163,9 +161,9 @@ std::vector<u8> SaveFile::loadFile(std::filesystem::path path) const {
     std::ifstream file(path, std::ios::in | std::ios::binary);
     std::vector<u8> buffer;
     if (!std::filesystem::exists(path))
-        throw exception("Path {} does not exist.", ToAbsolutePath(path).generic_string());
+        throw exception("Path {} does not exist.", util::ToAbsolutePath(path).generic_string());
     if (!file.is_open())
-        throw exception("Could not open file '{}'", ToAbsolutePath(path).generic_string());
+        throw exception("Could not open file '{}'", util::ToAbsolutePath(path).generic_string());
 
     buffer = {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
     file.close();
@@ -175,9 +173,9 @@ std::vector<u8> SaveFile::loadFile(std::filesystem::path path) const {
 void SaveFile::write(SaveSpan data, std::filesystem::path path) const {
     std::ofstream file(path, std::ios::out | std::ios::binary);
     if (!std::filesystem::exists(path))
-        throw exception("Path {} does not exist.", ToAbsolutePath(path).generic_string());
+        throw exception("Path {} does not exist.", util::ToAbsolutePath(path).generic_string());
     if (!file.is_open())
-        throw exception("Could not open file '{}'", ToAbsolutePath(path).generic_string());
+        throw exception("Could not open file '{}'", util::ToAbsolutePath(path).generic_string());
 
     validateData(data, "Generated data");
     recalculateChecksums(data);
@@ -240,7 +238,7 @@ void SaveFile::renameSlot(size_t slotIndex, std::string_view name) {
 void SaveFile::replaceSteamId(SaveSpan replaceFrom, u64 newSteamId) const {
     std::array<u8, sizeof(u64)> steamIdData{};
     std::memcpy(steamIdData.data(), &newSteamId, sizeof(u64));
-    ReplaceAll<u8>(saveData, SteamIdSection.bytesFrom(replaceFrom), steamIdData);
+    util::ReplaceAll<u8>(saveData, SteamIdSection.bytesFrom(replaceFrom), steamIdData);
 }
 
 void SaveFile::replaceSteamId(u64 newSteamId) const {
@@ -248,7 +246,7 @@ void SaveFile::replaceSteamId(u64 newSteamId) const {
 }
 
 void SaveFile::recalculateChecksums(SaveSpan data) const {
-    auto saveHeaderChecksum{GenerateMd5(SaveHeaderSection.bytesFrom(data))};
+    auto saveHeaderChecksum{util::GenerateMd5(SaveHeaderSection.bytesFrom(data))};
     SaveHeaderChecksumSection.replace(data, saveHeaderChecksum);
     for (auto &slot : slots)
         slot.recalculateSlotChecksum(data);
@@ -259,12 +257,16 @@ void SaveFile::setSlotActivity(size_t slotIndex, bool active) {
     refreshSlots();
 }
 
-u32 SaveFile::getItem(size_t slot, Item item) const {
+u32 SaveFile::getItem(size_t slot, Items::Item item) const {
     return slots[slot].getItemQuantity(saveData, item);
 }
 
-void SaveFile::setItem(size_t slot, Item item, u32 quantity) const {
+void SaveFile::setItem(size_t slot, Items::Item item, u32 quantity) const {
     slots[slot].setItemQuantity(saveData, item, quantity);
 }
 
-}; // namespace savepatcher
+void SaveFile::printActiveSlots() const {
+    for (auto slot : slots)
+        if (slot.active)
+            fmt::print("    slot {}: {}, level {}, played for {}\n", slot.slotIndex, slot.name, slot.level, slot.timePlayed);
+}

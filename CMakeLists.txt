@@ -21,6 +21,7 @@ add_executable(erutils
     src/main.cpp
     src/savefile.cpp
     src/util.cpp
+    src/items.cpp
 )
 
 target_compile_options(erutils PRIVATE

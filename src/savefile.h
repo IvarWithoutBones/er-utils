@@ -5,7 +5,8 @@
 #include <string>
 #include <vector>
 
-namespace savepatcher {
+constexpr static size_t SaveFileSize = 0x1BA03D0; //!< The size of an Elden Ring save file
+using SaveSpan = std::span<u8, SaveFileSize>;     //!< A span of the save file
 
 /**
  * @brief One of the slots in a save file
@@ -85,9 +86,9 @@ class Slot {
      */
     void debugListItems(SaveSpan data);
 
-    u32 getItemQuantity(SaveSpan data, Item item) const;
+    u32 getItemQuantity(SaveSpan data, Items::Item item) const;
 
-    void setItemQuantity(SaveSpan data, Item item, u32 quantity) const;
+    void setItemQuantity(SaveSpan data, Items::Item item, u32 quantity) const;
 
     void setActive(SaveSpan data, bool active) const;
 
@@ -140,7 +141,7 @@ class SaveFile {
     std::vector<Slot> slots; //!< The characters in the save file
 
     SaveFile(std::filesystem::path path) : saveDataContainer{loadFile(path)}, saveData{saveDataContainer}, slots{parseSlots(saveData)} {
-        validateData(saveData, ToAbsolutePath(path).generic_string());
+        validateData(saveData, util::ToAbsolutePath(path).generic_string());
     }
 
     void debugListItems(u8 slotIndex);
@@ -194,12 +195,12 @@ class SaveFile {
     /**
      * @brief Get the quantity of an item in the given slot
      */
-    u32 getItem(size_t slot, Item item) const;
+    u32 getItem(size_t slot, Items::Item item) const;
 
     /**
      * @brief Set the quantity of an item in the given slot
      */
-    void setItem(size_t slot, Item item, u32 quantity) const;
-};
+    void setItem(size_t slot, Items::Item item, u32 quantity) const;
 
-} // namespace savepatcher
+    void printActiveSlots() const;
+};

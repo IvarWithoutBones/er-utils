@@ -3,7 +3,7 @@
 #include <functional>
 #include <span>
 
-namespace savepatcher::util {
+namespace util {
 
 const Md5Hash GenerateMd5(std::span<u8> input) {
     MD5_CTX sha256;
@@ -58,7 +58,9 @@ const std::string GetEnvironmentVariable(std::string_view name, std::function<st
 }
 
 const std::string GetEnvironmentVariable(std::string_view name, std::string_view defaultValue) {
-    return GetEnvironmentVariable(name, [defaultValue]() { return defaultValue.data(); });
+    return GetEnvironmentVariable(name, [defaultValue]() {
+        return defaultValue.data();
+    });
 }
 
 std::filesystem::path FindFileInSubDirectory(std::filesystem::path directory, std::string_view filename) {
@@ -128,4 +130,4 @@ std::filesystem::path BackupSavefile(std::filesystem::path saveFilePath) {
     return backupDir;
 }
 
-} // namespace savepatcher::util
+} // namespace util

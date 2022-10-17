@@ -1,5 +1,3 @@
-#pragma once
-
 #include <filesystem>
 #include <fmt/format.h>
 #include <functional>
@@ -7,15 +5,13 @@
 #include <span>
 #include <stdexcept>
 
-namespace savepatcher {
+#pragma once
 
 using u64 = __uint64_t; //!< Unsigned 64-bit integer
 using u32 = __uint32_t; //!< Unsigned 32-bit integer
 using u16 = __uint16_t; //!< Unsigned 16-bit integer
 using u8 = __uint8_t;   //!< Unsigned 8-bit integer
 
-constexpr static size_t SaveFileSize = 0x1BA03D0;  //!< The size of an Elden Ring save file
-using SaveSpan = std::span<u8, SaveFileSize>;      //!< A span of the save file
 using Md5Hash = std::array<u8, MD5_DIGEST_LENGTH>; //!< An MD5 hash
 
 /**
@@ -174,7 +170,3 @@ std::filesystem::path CreateBackupDirectory();
 std::filesystem::path BackupSavefile(std::filesystem::path saveFilePath);
 
 } // namespace util
-
-using namespace util;
-
-} // namespace savepatcher

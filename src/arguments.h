@@ -1,9 +1,9 @@
 #include "util.h"
 #include <concepts>
+#include <fmt/color.h>
 #include <fmt/core.h>
 
 namespace CommandLineArguments {
-using namespace savepatcher; // for exception
 
 struct ArgumentBase {
   public:
@@ -158,11 +158,17 @@ class ArgumentParser {
         }
     }
 
-    /**
-     * @brief Get the brief and full description of all arguments
-     */
-    constexpr std::tuple<std::string_view, std::string_view, std::string_view> getUsage() const {
-        return std::make_tuple(programName.data(), briefUsageDescription.data(), usageDescription.data());
+    [[noreturn]] void exitAndShowUsage(ArgumentBase command = {}, std::string_view message = "", int exitCode = 0) {
+        if (exitCode != 0)
+            fmt::print("{}: {}\n\n", fmt::format(fg(fmt::color::red), "error"), message);
+
+        auto [name, briefUsage, fullUsage] = std::make_tuple(programName.data(), briefUsageDescription.data(), usageDescription.data());
+        if (command.notEmpty)
+            fmt::print("usage:\n  {} {} {} {}\n", name, command.name, command.briefDescription, fmt::format(fg(fmt::color::gray), "# {}", command.description));
+        else
+            fmt::print("usage: {} {}\n    {}", name, briefUsage, fullUsage);
+
+        exit(exitCode);
     }
 };
 

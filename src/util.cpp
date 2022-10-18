@@ -2,15 +2,16 @@
 #include <chrono>
 #include <functional>
 #include <span>
+#include <openssl/evp.h>
 
 namespace util {
 
 const Md5Hash GenerateMd5(std::span<u8> input) {
-    MD5_CTX sha256;
     Md5Hash hash{};
-    MD5_Init(&sha256);
-    MD5_Update(&sha256, input.data(), input.size_bytes());
-    MD5_Final(hash.data(), &sha256);
+    auto context{EVP_MD_CTX_new()};
+    EVP_DigestInit_ex(context, EVP_md5(), nullptr);
+    EVP_DigestUpdate(context, input.data(), input.size_bytes());
+    EVP_DigestFinal_ex(context, hash.data(), nullptr);
     return hash;
 }
 

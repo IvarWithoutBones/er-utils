@@ -17,11 +17,17 @@ rec {
         , clang13Stdenv
         , cmake
         , fmt_latest
-        , openssl_1_1
+        , openssl
         }:
         clang13Stdenv.mkDerivation rec {
           pname = "erutils";
-          version = "0.0.1";
+          version =
+            let
+              year = lib.substring 0 4 self.lastModifiedDate;
+              month = lib.substring 4 2 self.lastModifiedDate;
+              day = lib.substring 6 2 self.lastModifiedDate;
+            in
+            "0.pre+date=${year}-${month}-${day}";
 
           src = lib.cleanSourceWith {
             src = lib.cleanSource ./.;
@@ -34,7 +40,11 @@ rec {
 
           buildInputs = [
             fmt_latest
-            openssl_1_1
+            openssl
+          ];
+
+          cmakeFlags = [
+            "-DVERSION=${version}"
           ];
 
           doInstallCheck = true;

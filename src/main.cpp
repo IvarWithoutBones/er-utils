@@ -130,17 +130,18 @@ int main(int argc, char **argv) {
     if (!shownSlots)
         saveFile.printActiveSlots();
 
-    // TODO: detect if the savefile has changed since it was loaded
     fmt::print("\n");
     if (!dryRun.set) {
         auto backupFile{util::BackupSavefile(save.value)};
+        // TODO: detect if the savefile has changed since it was loaded
         fmt::print("wrote a backup of the original savefile to '{}'\n", util::ToAbsolutePath(backupFile).generic_string());
         if (output.set) {
             outputPath = output.value;
             if (std::filesystem::exists(outputPath))
                 fmt::print("the output file '{}' already exists, overwriting it\n", outputPath.generic_string());
-        }
+        } else
+            outputPath = save.value;
         saveFile.write(outputPath);
-        fmt::print("succesfully wrote changes to '{}'\n", save.value);
+        fmt::print("succesfully wrote changes to '{}'\n", outputPath.generic_string());
     }
 }

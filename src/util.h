@@ -12,8 +12,6 @@ using u32 = __uint32_t; //!< Unsigned 32-bit integer
 using u16 = __uint16_t; //!< Unsigned 16-bit integer
 using u8 = __uint8_t;   //!< Unsigned 8-bit integer
 
-using Md5Hash = std::array<u8, MD5_DIGEST_LENGTH>; //!< An MD5 hash
-
 /**
  * @brief A wrapper around std::runtime_error with {fmt} formatting
  */
@@ -125,6 +123,8 @@ template <typename T, class C> constexpr void ReplaceAll(std::span<T> data, std:
         index = itr - data.begin() + 1;
     }
 }
+
+using Md5Hash = std::array<u8, MD5_DIGEST_LENGTH>;
 
 const Md5Hash GenerateMd5(std::span<u8> input);
 

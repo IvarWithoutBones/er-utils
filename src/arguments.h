@@ -7,7 +7,7 @@ namespace CommandLineArguments {
 
 struct ArgumentBase {
   public:
-    bool notEmpty{false};
+    bool empty{true};
     std::string_view name{};
     std::string_view description{};
     std::string_view briefDescription{};
@@ -54,7 +54,7 @@ class ArgumentParser {
      * @brief Append an argument to the argument container and parse it if it is set
      */
     template <typename Type> constexpr void addArgument(Argument<Type> &arg) {
-        arg.notEmpty = true;
+        arg.empty = false;
         if (isSet(arg.name)) {
             parse(arg);
             arg.set = true;
@@ -150,7 +150,7 @@ class ArgumentParser {
     /**
      * @brief Check if the program was called with any unexpected arguments
      */
-    constexpr void checkForUnexpected() const {
+    constexpr void check() const {
         for (size_t i{1}; i < rawArguments.size(); i++) {
             auto arg{rawArguments[i]};
             if (std::find(argumentNames.begin(), argumentNames.end(), arg) == argumentNames.end())
@@ -158,17 +158,12 @@ class ArgumentParser {
         }
     }
 
-    [[noreturn]] void exitAndShowUsage(ArgumentBase command = {}, std::string_view message = "", int exitCode = 0) {
-        if (exitCode != 0)
-            fmt::print("{}: {}\n\n", fmt::format(fg(fmt::color::red), "error"), message);
+    constexpr size_t size() const {
+        return rawArguments.size() - 1;
+    }
 
-        auto [name, briefUsage, fullUsage] = std::make_tuple(programName.data(), briefUsageDescription.data(), usageDescription.data());
-        if (command.notEmpty)
-            fmt::print("usage:\n  {} {} {} {}\n", name, command.name, command.briefDescription, fmt::format(fg(fmt::color::gray), "# {}", command.description));
-        else
-            fmt::print("usage: {} {}\n    {}", name, briefUsage, fullUsage);
-
-        exit(exitCode);
+    void showUsage() {
+        fmt::print("usage: {} {}\n{}", programName.data(), briefUsageDescription.data(), usageDescription.data());
     }
 };
 

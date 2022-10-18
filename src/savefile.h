@@ -13,7 +13,7 @@ using SaveSpan = std::span<u8, SaveFileSize>;     //!< A span of the save file
  */
 class Slot {
   public:
-    const size_t slotIndex; //!< The index of the save slot, each character has a unique slot. This value can range between 0-9
+    const size_t index; //!< The index of the save slot, each character has a unique slot. This value can range between 0-9
   private:
     /**
      * @brief Used to calculate a target address when copying a character
@@ -33,23 +33,23 @@ class Slot {
     /**
      * @brief A wrapper around Section that provides the offsets for a save header
      */
-    constexpr Section ParseHeader(size_t address, size_t size, size_t index) const {
-        return Section{address + (index * SlotHeaderSection.size), size};
+    constexpr Section ParseHeader(size_t address, size_t size, size_t slotIndex) const {
+        return Section{address + (slotIndex * SlotHeaderSection.size), size};
     }
 
     constexpr Section ParseHeader(size_t address, size_t size) const {
-        return ParseHeader(address, size, slotIndex);
+        return ParseHeader(address, size, index);
     }
 
     /**
      * @brief A wrapper around Section that provides the offsets for a save slot
      */
-    constexpr Section ParseSlot(size_t address, size_t size, size_t index) const {
-        return Section{address + (index * 0x10) + (index * SlotSection.size), size};
+    constexpr Section ParseSlot(size_t address, size_t size, size_t slotIndex) const {
+        return Section{address + (slotIndex * 0x10) + (slotIndex * SlotSection.size), size};
     }
 
     constexpr Section ParseSlot(size_t address, size_t size) const {
-        return ParseSlot(address, size, slotIndex);
+        return ParseSlot(address, size, index);
     }
 
     bool isActive(SaveSpan data, size_t slotIndex) const;
@@ -66,7 +66,7 @@ class Slot {
     std::string name;       //!< The name of the character
     std::string timePlayed; //!< A timestamp of the characters play time
 
-    constexpr Slot(SaveSpan data, size_t slotIndex) : slotIndex{slotIndex}, active{isActive(data, slotIndex)}, level{getLevel(data)}, name{getName(data)}, timePlayed{getTimePlayed(data)} {}
+    constexpr Slot(SaveSpan data, size_t slotIndex) : index{slotIndex}, active{isActive(data, slotIndex)}, level{getLevel(data)}, name{getName(data)}, timePlayed{getTimePlayed(data)} {}
 
     /**
      * @brief Copy the currently active save slot into the given span
@@ -139,12 +139,13 @@ class SaveFile {
 
   public:
     std::vector<Slot> slots; //!< The characters in the save file
+    Items::Items items{};
 
     SaveFile(std::filesystem::path path) : saveDataContainer{loadFile(path)}, saveData{saveDataContainer}, slots{parseSlots(saveData)} {
         validateData(saveData, util::ToAbsolutePath(path).generic_string());
     }
 
-    void debugListItems(u8 slotIndex);
+    void debugListItems(int slotIndex);
 
     /**
      * @brief Write the patched save data to a file
@@ -203,4 +204,8 @@ class SaveFile {
     void setItem(size_t slot, Items::Item item, u32 quantity) const;
 
     void printActiveSlots() const;
+
+    void printSlot(size_t slotIndex) const;
+
+    void printItems(size_t slotIndex) const;
 };

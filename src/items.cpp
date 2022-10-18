@@ -57,4 +57,9 @@ const Item Items::operator[](std::string_view name) {
     throw exception("Unknown item '{}'", name);
 }
 
+void Items::print() const {
+    for (auto item : *this)
+        fmt::print("{}\n", item.first);
+};
+
 } // namespace Items

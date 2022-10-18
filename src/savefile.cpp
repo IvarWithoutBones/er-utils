@@ -129,7 +129,7 @@ std::string Slot::getName(SaveSpan data) const {
 }
 
 void Slot::setActive(SaveSpan data, bool value) const {
-    ActiveSection.bytesFrom(data)[slotIndex] = value;
+    ActiveSection.bytesFrom(data)[index] = value;
 }
 
 std::string Slot::getTimePlayed(SaveSpan data) const {
@@ -140,8 +140,8 @@ u64 Slot::getLevel(SaveSpan data) const {
     return LevelSection.castInteger<u8>(data);
 }
 
-bool Slot::isActive(SaveSpan data, size_t index) const {
-    return static_cast<bool>(ActiveSection.bytesFrom(data)[index]);
+bool Slot::isActive(SaveSpan data, size_t slotIndex) const {
+    return static_cast<bool>(ActiveSection.bytesFrom(data)[slotIndex]);
 }
 
 void SaveFile::validateData(SaveSpan data, std::string_view target) const {
@@ -153,7 +153,7 @@ u64 SaveFile::steamId() const {
     return SteamIdSection.castInteger<u64>(saveData);
 }
 
-void SaveFile::debugListItems(u8 slotIndex) {
+void SaveFile::debugListItems(int slotIndex) {
     slots[slotIndex].debugListItems(saveData);
 }
 
@@ -171,6 +171,7 @@ std::vector<u8> SaveFile::loadFile(std::filesystem::path path) const {
 }
 
 void SaveFile::write(SaveSpan data, std::filesystem::path path) const {
+    // TODO: Seems like this messes up slot names sometimes? Probably encoding related
     std::ofstream file(path, std::ios::out | std::ios::binary);
     if (!std::filesystem::exists(path))
         throw exception("Path {} does not exist.", util::ToAbsolutePath(path).generic_string());
@@ -213,7 +214,7 @@ void SaveFile::appendSlot(SaveFile &source, size_t sourceSlotIndex) {
     size_t firstAvailableSlot{SlotCount + 1};
     for (auto &slot : slots)
         if (!slot.active) {
-            firstAvailableSlot = slot.slotIndex;
+            firstAvailableSlot = slot.index;
             break;
         }
 
@@ -268,5 +269,21 @@ void SaveFile::setItem(size_t slot, Items::Item item, u32 quantity) const {
 void SaveFile::printActiveSlots() const {
     for (auto slot : slots)
         if (slot.active)
-            fmt::print("    slot {}: {}, level {}, played for {}\n", slot.slotIndex, slot.name, slot.level, slot.timePlayed);
+            printSlot(slot.index);
+}
+
+void SaveFile::printSlot(size_t slotIndex) const {
+    const auto slot{slots[slotIndex]};
+    if (!slot.active)
+        fmt::print("warning: slot {} is not active\n", slotIndex);
+    fmt::print("slot {}: {}, level {}, played for {}\n", slotIndex, slot.name, slot.level, slot.timePlayed);
+}
+
+void SaveFile::printItems(size_t slotIndex) const {
+    const auto slot{slots[slotIndex]};
+    if (!slot.active)
+        fmt::print("warning: slot {} is not active\n", slotIndex);
+    for (auto item : items)
+        if (getItem(slotIndex, item.second))
+            fmt::print("{}: {}\n", item.first, getItem(slotIndex, item.second));
 }

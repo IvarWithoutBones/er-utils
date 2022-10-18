@@ -123,6 +123,8 @@ class Items : public ItemList {
     const std::string findId(ItemResult item);
 
     ItemGroup hasGroup(ItemResult item);
+
+    void print() const;
 };
 
 } // namespace Items

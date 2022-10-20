@@ -1,0 +1,3 @@
+[submodule "external/erdb"]
+	path = external/erdb
+	url = https://github.com/EldenRingDatabase/erdb

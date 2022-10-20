@@ -41,3 +41,6 @@
 # Direnv
 *envrc
 *direnv
+
+# Generated files
+generateditems.h

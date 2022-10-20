@@ -25,7 +25,6 @@ template <typename Type> struct Argument : public ArgumentBase {
     bool set{};
 
     constexpr Argument() = default;
-    // constexpr Argument(std::string_view name) : name(name) {}
     constexpr Argument(std::string_view name, std::string_view description) {
         this->name = name;
         this->description = description;

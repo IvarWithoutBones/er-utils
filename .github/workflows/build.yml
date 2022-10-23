@@ -1,11 +1,11 @@
 name: build
 
-on: [ push, pull_request ]
+on: [push, pull_request, workflow_dispatch]
 
 jobs:
   build:
-    name: Build
-    runs-on: ubuntu-latest
+    name: build
+    runs-on: [ubuntu-latest, macos-latest]
 
     steps:
       - name: Checkout repository
@@ -18,9 +18,9 @@ jobs:
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
 
       - name: Check flake
-        # An 'packages' entry will get generated for more systems than the derivation supports
+        # A 'packages' entry will get generated for more systems than the derivation supports
         run: NIXPKGS_ALLOW_UNSUPPORTED_SYSTEM=1 nix flake check --impure
 
-      - name: Build
+      - name: Build flake
         run: nix build
 

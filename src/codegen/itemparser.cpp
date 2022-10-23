@@ -1,4 +1,5 @@
 #include "itemparser.h"
+#include "../util.h"
 #include <array>
 #include <fmt/core.h>
 #include <sstream>
@@ -16,13 +17,12 @@ ItemParser::ItemParser(const std::string_view path) : file(path.data()) {
     std::string firstLine;
     std::getline(file, firstLine);
     auto columns{parseLine(firstLine)};
-    size_t index{};
-    for (auto column : columns) {
+    for (size_t itr{}; itr < columns.size(); itr++) {
+        const auto column{columns.at(itr)};
         if (column == nameIdentifier.name)
-            nameIdentifier.index = index;
+            nameIdentifier.index = itr;
         else if (column == idIdentifier.name)
-            idIdentifier.index = index;
-        index++;
+            idIdentifier.index = itr;
     }
 }
 
@@ -61,9 +61,10 @@ void ItemParser::generate() {
         }) != items.end())
             continue;
         // clang-format on
-
         items.push_back({normalise(columns.at(nameIdentifier.index)), columns.at(idIdentifier.index)});
     }
+    if (items.empty())
+        throw exception("No items found while attempting to create generateditems.h");
 
     fmt::print("#pragma once\n"
                "#include <array>\n"

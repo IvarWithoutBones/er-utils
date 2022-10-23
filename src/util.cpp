@@ -69,9 +69,8 @@ Maybe<std::filesystem::path> FindFileInSubDirectory(std::filesystem::path direct
         for (auto &path : std::filesystem::directory_iterator(directory))
             if (path.is_directory()) {
                 const auto filePath{path.path() / filename};
-                if (std::filesystem::exists(filePath)) {
+                if (std::filesystem::exists(filePath))
                     return filePath;
-                }
             }
     }
 

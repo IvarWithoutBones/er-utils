@@ -10,7 +10,7 @@
 
 int main(int argc, char **argv) {
     CommandLineArguments::ArgumentParser arguments(argc, argv);
-    auto defaultSavePath{util::FindFileInSubDirectory(fmt::format("{}/.steam/steam/steamapps/compatdata/1245620/pfx/drive_c/users/steamuser/AppData/Roaming/EldenRing", util::GetEnvironmentVariable("HOME")), "ER0000.sl2")};
+    auto savePath{util::FindFileInSubDirectory(fmt::format("{}/.steam/steam/steamapps/compatdata/1245620/pfx/drive_c/users/steamuser/AppData/Roaming/EldenRing", util::GetEnvironmentVariable("HOME")), "ER0000.sl2")};
     std::filesystem::path outputPath;
     bool shownSlots{false};
 
@@ -42,14 +42,13 @@ int main(int argc, char **argv) {
     // TODO: default values in the argument parser
     if (!slot.set)
         slot.value = 0;
-    if (!save.set) {
-        if (!defaultSavePath.hasValue)
-            throw exception(defaultSavePath.errorMessage);
-        save.value = defaultSavePath.value.string();
-    }
+    if (save.set)
+        savePath.value = save.value;
+    else if (!savePath.hasValue)
+        throw exception(savePath.errorMessage);
 
-    SaveFile saveFile{save.value};
-    fmt::print("using savefile '{}'\nSteam ID embedded in the savefile: {}\n", save.value, saveFile.steamId());
+    SaveFile saveFile{savePath.value};
+    fmt::print("using savefile '{}'\nSteam ID embedded in the savefile: {}\n", savePath.value.string(), saveFile.steamId());
 
     if (arguments.size() == 0) {
         saveFile.printActiveSlots();
@@ -136,7 +135,7 @@ int main(int argc, char **argv) {
 
     fmt::print("\n");
     if (!dryRun.set) {
-        auto backupFile{util::BackupSavefile(save.value)};
+        auto backupFile{util::BackupSavefile(savePath.value)};
         // TODO: detect if the savefile has changed since it was loaded
         fmt::print("wrote a backup of the original savefile to '{}'\n", util::ToAbsolutePath(backupFile).generic_string());
         if (output.set) {
@@ -144,7 +143,7 @@ int main(int argc, char **argv) {
             if (std::filesystem::exists(outputPath))
                 fmt::print("the output file '{}' already exists, overwriting it\n", outputPath.generic_string());
         } else
-            outputPath = save.value;
+            outputPath = savePath.value;
         saveFile.write(outputPath);
         fmt::print("succesfully wrote changes to '{}'\n", outputPath.generic_string());
     }

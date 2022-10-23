@@ -81,7 +81,7 @@ rec {
             inherit description;
             homepage = "https://github.com/IvarWithoutBones/erutils";
             license = licenses.asl20;
-            platforms = platforms.linux;
+            platforms = platforms.unix;
           };
         };
     in

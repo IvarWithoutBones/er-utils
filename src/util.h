@@ -92,6 +92,17 @@ struct Section {
     }
 };
 
+/**
+ * @brief An object that may or may not contain a value
+ */
+template <typename T> struct Maybe {
+    T value;
+    bool hasValue;
+    std::string errorMessage;
+    Maybe(T value) : value{value}, hasValue{true} {}
+    Maybe(std::string errorMessage, bool hasValue = false) : hasValue{hasValue}, errorMessage{errorMessage} {}
+};
+
 namespace util {
 
 /**
@@ -147,7 +158,7 @@ const std::string GetEnvironmentVariable(std::string_view name, std::string_view
  */
 u64 GetSteamId(std::filesystem::path saveFilePath);
 
-std::filesystem::path FindFileInSubDirectory(std::filesystem::path directory, std::string_view filename);
+Maybe<std::filesystem::path> FindFileInSubDirectory(std::filesystem::path directory, std::string_view filename);
 
 /**
  * @brief Get an std::filesystem::path's absolute path, used for logging

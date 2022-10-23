@@ -10,7 +10,7 @@
 
 int main(int argc, char **argv) {
     CommandLineArguments::ArgumentParser arguments(argc, argv);
-    std::string defaultSavePath{util::FindFileInSubDirectory(fmt::format("{}/.steam/steam/steamapps/compatdata/1245620/pfx/drive_c/users/steamuser/AppData/Roaming/EldenRing", util::GetEnvironmentVariable("HOME")), "ER0000.sl2")};
+    auto defaultSavePath{util::FindFileInSubDirectory(fmt::format("{}/.steam/steam/steamapps/compatdata/1245620/pfx/drive_c/users/steamuser/AppData/Roaming/EldenRing", util::GetEnvironmentVariable("HOME")), "ER0000.sl2")};
     std::filesystem::path outputPath;
     bool shownSlots{false};
 
@@ -31,18 +31,21 @@ int main(int argc, char **argv) {
     auto help{arguments.add<bool>({"--help", "Print this help message"})};
     arguments.check();
 
-    // TODO: default values in the argument parser
-    if (!slot.set)
-        slot.value = 0;
-    if (!save.set)
-        save.value = defaultSavePath;
-
     if (help.set) {
         arguments.showUsage();
         return 0;
     } else if (version.set) {
         fmt::print("erutils v{}\n", VERSION);
         return 0;
+    }
+
+    // TODO: default values in the argument parser
+    if (!slot.set)
+        slot.value = 0;
+    if (!save.set) {
+        if (!defaultSavePath.hasValue)
+            throw exception(defaultSavePath.errorMessage);
+        save.value = defaultSavePath.value.string();
     }
 
     SaveFile saveFile{save.value};

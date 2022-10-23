@@ -33,9 +33,6 @@ void Slot::debugListItems(SaveSpan data) {
             itr++;
     }
 
-    std::sort(recognized.begin(), recognized.end());
-    std::sort(unknown.begin(), unknown.end());
-
     // TODO: this sometimes doesnt find all duplicates, no idea why
     for (auto checking{unknown.begin()}; checking != unknown.end(); checking++) {
         for (auto pos{checking}; pos + 1 != unknown.end(); pos++) {

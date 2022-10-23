@@ -1,5 +1,6 @@
 #include "util.h"
 #include <concepts>
+#include <vector>
 #include <fmt/color.h>
 #include <fmt/core.h>
 

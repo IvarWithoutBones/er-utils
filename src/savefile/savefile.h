@@ -1,6 +1,7 @@
 #include "items.h"
 #include <filesystem>
 #include <span>
+#include <vector>
 #include <string>
 #include <vector>
 

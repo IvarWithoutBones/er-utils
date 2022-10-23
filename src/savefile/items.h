@@ -2,6 +2,7 @@
 #include "../util.h"
 #include <array>
 #include <list>
+#include <vector>
 #include <map>
 
 namespace Items {

@@ -1,8 +1,8 @@
 #include "util.h"
 #include <chrono>
 #include <functional>
-#include <span>
 #include <openssl/evp.h>
+#include <span>
 
 namespace util {
 
@@ -64,7 +64,7 @@ const std::string GetEnvironmentVariable(std::string_view name, std::string_view
     });
 }
 
-std::filesystem::path FindFileInSubDirectory(std::filesystem::path directory, std::string_view filename) {
+Maybe<std::filesystem::path> FindFileInSubDirectory(std::filesystem::path directory, std::string_view filename) {
     if (std::filesystem::exists(directory)) {
         for (auto &path : std::filesystem::directory_iterator(directory))
             if (path.is_directory()) {
@@ -75,7 +75,7 @@ std::filesystem::path FindFileInSubDirectory(std::filesystem::path directory, st
             }
     }
 
-    return {};
+    return fmt::format("Could not find file '{}' in any subdirectory of '{}'", filename, directory.string());
 }
 
 u64 GetSteamId(std::filesystem::path saveFilePath) {
